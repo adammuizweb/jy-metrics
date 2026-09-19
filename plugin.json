@@ -1,0 +1,161 @@
+{
+    "name": "jy-metrics",
+    "version": "2.6.9",
+    "title": "Jy Metrics",
+    "description": "Analytics, search performance, and page experience reports for Jyavani CMS.",
+    "author": "Adam Muiz",
+    "author_uri": "https://jyavani.com/member/adammuiz/",
+    "plugin_uri": "https://jyavani.com/plugin/jy-metrics/",
+    "homepage": "https://jyavani.com/plugin/jy-metrics/",
+    "github_url": "https://github.com/adammuizweb/jy-metrics",
+    "store": {
+        "url": "https://jyavani.com/plugin-store",
+        "slug": "jy-metrics"
+    },
+    "icon": "icon.png",
+    "permissions": [
+        {
+            "key": "plugin.jy-metrics.reports.read",
+            "label": "View Jy Metrics Reports",
+            "supports_scope": false,
+            "default_roles": [
+                "admin"
+            ],
+            "delegable": true
+        },
+        {
+            "key": "plugin.jy-metrics.integrations.manage",
+            "label": "Manage Jy Metrics Integrations",
+            "supports_scope": false,
+            "default_roles": [
+                "admin"
+            ],
+            "delegable": false
+        }
+    ],
+    "requires": {
+        "jyavani": ">=2.3.74",
+        "php": ">=8.1",
+        "extensions": [
+            "pdo",
+            "json",
+            "curl"
+        ]
+    },
+    "admin": {
+        "pages": [
+            {
+                "route": "admin/tools/jy-metrics",
+                "file": "admin/index.php",
+                "title": "Jy Metrics",
+                "permission": "plugin.jy-metrics.reports.read",
+                "roles": [
+                    "admin"
+                ]
+            },
+            {
+                "route": "admin/tools/jy-metrics/settings",
+                "file": "admin/settings.php",
+                "title": "Jy Metrics Settings",
+                "hidden": true,
+                "permission": "plugin.jy-metrics.integrations.manage",
+                "roles": [
+                    "admin"
+                ]
+            },
+            {
+                "route": "admin/tools/jy-metrics/oauth",
+                "file": "admin/oauth.php",
+                "title": "Jy Metrics OAuth Callback",
+                "hidden": true,
+                "permission": "plugin.jy-metrics.integrations.manage",
+                "roles": [
+                    "admin"
+                ]
+            },
+            {
+                "route": "admin/tools/jy-metrics/api/search-console",
+                "file": "api/search-console.php",
+                "title": "Jy Metrics Search Performance API",
+                "hidden": true,
+                "permission": "plugin.jy-metrics.reports.read",
+                "roles": [
+                    "admin"
+                ]
+            },
+            {
+                "route": "admin/tools/jy-metrics/wizard",
+                "file": "admin/wizard.php",
+                "title": "Jy Metrics Setup Wizard",
+                "hidden": true,
+                "permission": "plugin.jy-metrics.integrations.manage",
+                "roles": [
+                    "admin"
+                ]
+            },
+            {
+                "route": "admin/tools/jy-metrics/api/analytics",
+                "file": "api/analytics.php",
+                "title": "Jy Metrics Analytics API",
+                "hidden": true,
+                "permission": "plugin.jy-metrics.reports.read",
+                "roles": [
+                    "admin"
+                ]
+            },
+            {
+                "route": "admin/tools/jy-metrics/api/pagespeed",
+                "file": "api/pagespeed.php",
+                "title": "PageSpeed Insights API",
+                "hidden": true,
+                "permission": "plugin.jy-metrics.reports.read",
+                "roles": ["admin"]
+            },
+            {
+                "route": "admin/tools/jy-metrics/api/setup",
+                "file": "api/setup.php",
+                "title": "Jy Metrics Setup API",
+                "hidden": true,
+                "permission": "plugin.jy-metrics.integrations.manage",
+                "roles": [
+                    "admin"
+                ]
+            },
+            {
+                "route": "admin/tools/jy-metrics/api/save-wizard",
+                "file": "api/save-wizard.php",
+                "title": "Jy Metrics Save Wizard API",
+                "hidden": true,
+                "permission": "plugin.jy-metrics.integrations.manage",
+                "roles": [
+                    "admin"
+                ]
+            },
+            {
+                "route": "admin/tools/jy-metrics/api/disconnect",
+                "file": "api/disconnect.php",
+                "title": "Jy Metrics Disconnect API",
+                "hidden": true,
+                "permission": "plugin.jy-metrics.integrations.manage",
+                "roles": [
+                    "admin"
+                ]
+            }
+        ],
+        "nav": [
+            {
+                "label": "Jy Metrics",
+                "icon": "chart-bar",
+                "page": "admin/tools/jy-metrics",
+                "parent": "tools",
+                "roles": [
+                    "admin"
+                ]
+            }
+        ]
+    },
+    "assets": {
+        "css": [],
+        "js": []
+    }
+}
