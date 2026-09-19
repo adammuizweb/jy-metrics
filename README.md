@@ -85,6 +85,14 @@ accept or reject each category, and withdraw consent. Choices are stored locally
 for 180 days. Existing schema-1 Accept/Reject decisions are migrated to the new
 category model without granting additional access.
 
+When **Privacy Policy URL** points to a page on the same site, the floating
+reopen button disappears from regular pages after a decision and remains
+available on that policy page only after the administrator explicitly confirms
+that the page exists and is linked from the site footer. An empty, external, or
+unconfirmed policy URL retains the floating button everywhere as a safe fallback
+so visitors do not lose access to withdrawal controls. Configured query strings
+and fragments participate in page matching when present.
+
 When the browser exposes Global Privacy Control, Advertising remains disabled
 even if the visitor selects **Accept all**. Jy Metrics maps category choices to
 Google Consent Mode v2 and reloads the page after withdrawing consent from a

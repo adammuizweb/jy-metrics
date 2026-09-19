@@ -22,6 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $consentModeInput = trim((string)($_POST['consent_mode'] ?? 'off'));
         $privacyUrlInput = trim((string)($_POST['privacy_url'] ?? ''));
+        $privacyPageLinkedInput = $privacyUrlInput !== '' && isset($_POST['privacy_page_linked']) ? '1' : '0';
         if (!in_array($consentModeInput, ['off', 'choices'], true)
             || !gsk_valid_privacy_url($privacyUrlInput)) {
             $message = 'Invalid privacy consent settings.';
@@ -37,6 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             gsk_save_setting($pdo, GSK_PAGESPEED_API_KEY, trim((string)($_POST['pagespeed_api_key'] ?? '')));
             gsk_save_setting($pdo, GSK_CONSENT_MODE_KEY, $consentModeInput);
             gsk_save_setting($pdo, GSK_PRIVACY_URL_KEY, $privacyUrlInput);
+            gsk_save_setting($pdo, GSK_PRIVACY_PAGE_LINKED_KEY, $privacyPageLinkedInput);
             $message = 'Settings saved.';
             $messageType = 'success';
         }
@@ -58,6 +60,7 @@ $adsense = $settings[GSK_ADSENSE_CLIENT_KEY] ?? '';
 $verification = $settings[GSK_SITE_VERIFICATION_KEY] ?? '';
 $consentMode = gsk_consent_mode($pdo);
 $privacyUrl = $settings[GSK_PRIVACY_URL_KEY] ?? '';
+$privacyPageLinked = ($settings[GSK_PRIVACY_PAGE_LINKED_KEY] ?? '') === '1';
 $consentLabels = ['off' => 'Disabled', 'choices' => 'Global privacy choices'];
 $hasClientId = ($settings[GSK_CLIENT_ID_KEY] ?? '') !== '';
 $hasClientSecret = ($settings[GSK_CLIENT_SECRET_KEY] ?? '') !== '';
@@ -77,6 +80,11 @@ function gskServiceRow(string $label, bool $active, string $value, string $link 
     $valueHtml = $active && $value !== '' ? gsk_e($value) : '<span class="gsk-meta">Not configured</span>';
     $linkHtml = $active && $link !== '' ? '<a href="' . gsk_e($link) . '" target="_blank" rel="noopener" class="gsk-service-link">' . gsk_e($linkText) . '</a>' : '';
     return '<div class="gsk-service-row"><div class="gsk-service-info"><span class="gsk-dot ' . $dot . '"></span><div><strong class="gsk-service-label">' . gsk_e($label) . '</strong><div>' . $valueHtml . '</div></div></div>' . $linkHtml . '</div>';
+}
+
+function gskSettingsHelp(string $id, string $description): string {
+    return '<span class="gsk-help-wrap"><button type="button" class="gsk-help" aria-label="Help" aria-describedby="' . gsk_e($id) . '">?</button>'
+        . '<span class="gsk-help-tip" id="' . gsk_e($id) . '" role="tooltip">' . gsk_e($description) . '</span></span>';
 }
 ?>
 
@@ -165,12 +173,12 @@ function gskServiceRow(string $label, bool $active, string $value, string $link 
     </div>
 
     <div class="gsk-card gsk-card--collapsible" data-gsk-card>
-      <button type="button" class="gsk-card__head gsk-card__toggle" aria-expanded="<?= $consentMode === 'off' ? 'false' : 'true' ?>"><span class="gsk-card__title">Privacy Consent <span class="gsk-help" title="Controls whether optional Google scripts wait for visitor consent.">?</span></span><span class="gsk-card__summary"><?= gsk_e($consentLabels[$consentMode]) ?></span></button>
+      <button type="button" class="gsk-card__head gsk-card__toggle" aria-expanded="<?= $consentMode === 'off' ? 'false' : 'true' ?>" title="Shows consent once, stores category choices for 180 days, and keeps withdrawal available through the configured Privacy Policy page or a safe floating fallback."><span class="gsk-card__title">Privacy Consent</span><span class="gsk-card__summary"><?= gsk_e($consentLabels[$consentMode]) ?></span></button>
       <div class="gsk-card__body" data-gsk-card-body <?= $consentMode === 'off' ? 'hidden' : '' ?>>
         <p class="gsk-meta">When enabled, visitors can manage Analytics and Advertising separately. Optional Google scripts are not downloaded until the matching category is accepted. Site verification remains active because it does not set visitor cookies.</p>
         <div class="gsk-field-row">
           <div class="gsk-field">
-            <label class="gsk-field__label" for="gsk-consent-mode">Consent behavior</label>
+            <div class="gsk-field-label-row"><label class="gsk-field__label" for="gsk-consent-mode">Consent behavior</label><?= gskSettingsHelp('gsk-consent-mode-help', 'Global privacy choices separates Analytics from Advertising. Closing the banner rejects both optional categories, while Necessary remains active.') ?></div>
             <select id="gsk-consent-mode" name="consent_mode" class="inpud">
               <option value="off" <?= $consentMode === 'off' ? 'selected' : '' ?>>Disabled - load configured snippets normally</option>
               <option value="choices" <?= $consentMode === 'choices' ? 'selected' : '' ?>>Global privacy choices - category controls for everyone</option>
@@ -180,11 +188,12 @@ function gskServiceRow(string $label, bool $active, string $value, string $link 
         </div>
         <div class="gsk-field-row">
           <div class="gsk-field">
-            <label class="gsk-field__label" for="gsk-privacy-url">Privacy policy URL</label>
+            <div class="gsk-field-label-row"><label class="gsk-field__label" for="gsk-privacy-url">Privacy policy URL</label><?= gskSettingsHelp('gsk-privacy-url-help', 'For a confirmed same-site page, the floating Privacy choices button disappears from normal pages after consent and remains available on that policy page. Empty, external, or unconfirmed URLs keep the floating fallback everywhere.') ?></div>
             <input type="text" id="gsk-privacy-url" name="privacy_url" class="inpud" value="<?= gsk_e($privacyUrl) ?>" placeholder="/privacy-policy/">
-            <span class="gsk-field__hint">Optional relative path or HTTP(S) URL displayed in the consent banner.</span>
+            <span class="gsk-field__hint">Use a same-site page linked from the footer to keep the reopen control only on that page. Empty or external URLs retain the floating fallback everywhere so visitors can still withdraw consent.</span>
           </div>
         </div>
+        <div class="gsk-confirm-row"><label class="gsk-confirm"><input type="checkbox" name="privacy_page_linked" value="1" <?= $privacyPageLinked ? 'checked' : '' ?>><span><strong>I confirm this same-site privacy page exists and is linked from the site footer.</strong><small>Only after this confirmation will Jy Metrics hide the floating control from normal pages. Query strings and fragments in the configured URL are matched when present.</small></span></label><?= gskSettingsHelp('gsk-privacy-linked-help', 'This confirmation prevents a mistyped or undiscoverable page from removing the only consent-withdrawal control. Leave it unchecked until the page and footer link are both live.') ?></div>
         <p class="gsk-meta"><strong>Important:</strong> Tag Manager is treated as Advertising because a container can run arbitrary marketing tags. Jy Metrics controls only snippets injected by this plugin; review scripts added by themes or other plugins separately.</p>
       </div>
     </div>
@@ -266,6 +275,9 @@ function gskServiceRow(string $label, bool $active, string $value, string $link 
 .gsk-card__toggle { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 1rem; border: 0; background: transparent; color: var(--adam-text); text-align: left; cursor: pointer; font: inherit; }
 .gsk-card__summary { color: var(--adam-muted); font-size: .78rem; font-weight: 500; text-align: right; }
 .gsk-help { display: inline-grid; place-items: center; width: 1rem; height: 1rem; margin-left: .2rem; border: 1px solid var(--adam-border-2); border-radius: 50%; color: var(--adam-muted); font-size: .65rem; vertical-align: middle; cursor: help; }
+.gsk-help-wrap { position: relative; display: inline-flex; align-items: center; }
+.gsk-help-tip { position: absolute; z-index: 20; left: 50%; bottom: calc(100% + .45rem); width: min(280px, 70vw); padding: .55rem .65rem; border: 1px solid var(--adam-border); border-radius: 7px; background: var(--adam-card); color: var(--adam-text); box-shadow: 0 8px 24px rgba(15,23,42,.18); font-size: .75rem; font-weight: 400; line-height: 1.4; opacity: 0; pointer-events: none; transform: translate(-50%, .2rem); transition: opacity .15s, transform .15s; }
+.gsk-help-wrap:hover .gsk-help-tip,.gsk-help-wrap:focus-within .gsk-help-tip { opacity: 1; transform: translate(-50%, 0); }
 .gsk-card__toggle:hover .gsk-card__title { color: var(--adam-primary); }
 .gsk-card__title { font-size: 1.05rem; font-weight: 600; margin: 0; }
 .gsk-card__body { padding: 1.25rem; }
@@ -279,7 +291,14 @@ function gskServiceRow(string $label, bool $active, string $value, string $link 
 .gsk-service-link:hover { text-decoration: underline; }
 .gsk-field { display: flex; flex-direction: column; gap: .25rem; flex: 1 1 300px; min-width: 260px; }
 .gsk-field label { font-size: .75rem; color: var(--adam-muted); font-weight: 600; }
+.gsk-field-label-row { display: flex; align-items: center; gap: .15rem; }
 .gsk-field__hint { font-size: .75rem; color: var(--adam-muted); line-height: 1.45; }
+.gsk-confirm-row { display: flex; align-items: flex-start; gap: .35rem; margin: .2rem 0 1rem; }
+.gsk-confirm { display: flex; flex: 1; align-items: flex-start; gap: .65rem; padding: .75rem; border: 1px solid var(--adam-border); border-radius: 9px; color: var(--adam-text); cursor: pointer; }
+.gsk-confirm>input { margin-top: .15rem; }
+.gsk-confirm>span:nth-of-type(1) { flex: 1; }
+.gsk-confirm strong,.gsk-confirm small { display: block; }
+.gsk-confirm small { margin-top: .2rem; color: var(--adam-muted); font-weight: 400; line-height: 1.4; }
 .gsk-field-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
 .gsk-field-row:last-child { margin-bottom: 0; }
 .gsk-copy-row { display: flex; gap: .5rem; align-items: center; }
