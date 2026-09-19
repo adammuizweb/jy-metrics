@@ -20,16 +20,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $message = 'Invalid CSRF token.';
         $messageType = 'error';
     } else {
-        gsk_save_setting($pdo, GSK_CLIENT_ID_KEY, trim((string)($_POST['client_id'] ?? '')));
-        gsk_save_setting($pdo, GSK_CLIENT_SECRET_KEY, trim((string)($_POST['client_secret'] ?? '')));
-        gsk_save_setting($pdo, GSK_GA4_PROPERTY_ID_KEY, trim((string)($_POST['ga4_property_id'] ?? '')));
-        gsk_save_setting($pdo, GSK_MEASUREMENT_ID_KEY, trim((string)($_POST['measurement_id'] ?? '')));
-        gsk_save_setting($pdo, GSK_GTM_ID_KEY, trim((string)($_POST['gtm_id'] ?? '')));
-        gsk_save_setting($pdo, GSK_ADSENSE_CLIENT_KEY, trim((string)($_POST['adsense_client'] ?? '')));
-        gsk_save_setting($pdo, GSK_SITE_VERIFICATION_KEY, trim((string)($_POST['site_verification'] ?? '')));
-        gsk_save_setting($pdo, GSK_PAGESPEED_API_KEY, trim((string)($_POST['pagespeed_api_key'] ?? '')));
-        $message = 'Settings saved.';
-        $messageType = 'success';
+        $consentModeInput = trim((string)($_POST['consent_mode'] ?? 'off'));
+        $consentRegionSourceInput = trim((string)($_POST['consent_region_source'] ?? 'none'));
+        $privacyUrlInput = trim((string)($_POST['privacy_url'] ?? ''));
+        if (!in_array($consentModeInput, ['off', 'regional', 'strict'], true)
+            || !in_array($consentRegionSourceInput, ['none', 'cloudflare', 'cloudfront', 'vercel'], true)
+            || !gsk_valid_privacy_url($privacyUrlInput)) {
+            $message = 'Invalid privacy consent settings.';
+            $messageType = 'error';
+        } else {
+            gsk_save_setting($pdo, GSK_CLIENT_ID_KEY, trim((string)($_POST['client_id'] ?? '')));
+            gsk_save_setting($pdo, GSK_CLIENT_SECRET_KEY, trim((string)($_POST['client_secret'] ?? '')));
+            gsk_save_setting($pdo, GSK_GA4_PROPERTY_ID_KEY, trim((string)($_POST['ga4_property_id'] ?? '')));
+            gsk_save_setting($pdo, GSK_MEASUREMENT_ID_KEY, trim((string)($_POST['measurement_id'] ?? '')));
+            gsk_save_setting($pdo, GSK_GTM_ID_KEY, trim((string)($_POST['gtm_id'] ?? '')));
+            gsk_save_setting($pdo, GSK_ADSENSE_CLIENT_KEY, trim((string)($_POST['adsense_client'] ?? '')));
+            gsk_save_setting($pdo, GSK_SITE_VERIFICATION_KEY, trim((string)($_POST['site_verification'] ?? '')));
+            gsk_save_setting($pdo, GSK_PAGESPEED_API_KEY, trim((string)($_POST['pagespeed_api_key'] ?? '')));
+            gsk_save_setting($pdo, GSK_CONSENT_MODE_KEY, $consentModeInput);
+            gsk_save_setting($pdo, GSK_CONSENT_REGION_SOURCE_KEY, $consentRegionSourceInput);
+            gsk_save_setting($pdo, GSK_PRIVACY_URL_KEY, $privacyUrlInput);
+            $message = 'Settings saved.';
+            $messageType = 'success';
+        }
     }
 }
 
@@ -46,6 +59,10 @@ $propertyId = $settings[GSK_GA4_PROPERTY_ID_KEY] ?? '';
 $gtmId = $settings[GSK_GTM_ID_KEY] ?? '';
 $adsense = $settings[GSK_ADSENSE_CLIENT_KEY] ?? '';
 $verification = $settings[GSK_SITE_VERIFICATION_KEY] ?? '';
+$consentMode = gsk_consent_mode($pdo);
+$consentRegionSource = gsk_consent_region_source($pdo);
+$privacyUrl = $settings[GSK_PRIVACY_URL_KEY] ?? '';
+$consentLabels = ['off' => 'Disabled', 'regional' => 'Regional', 'strict' => 'Strict for everyone'];
 $hasClientId = ($settings[GSK_CLIENT_ID_KEY] ?? '') !== '';
 $hasClientSecret = ($settings[GSK_CLIENT_SECRET_KEY] ?? '') !== '';
 $hasOAuthCredentials = $hasClientId && $hasClientSecret;
@@ -152,6 +169,44 @@ function gskServiceRow(string $label, bool $active, string $value, string $link 
     </div>
 
     <div class="gsk-card gsk-card--collapsible" data-gsk-card>
+      <button type="button" class="gsk-card__head gsk-card__toggle" aria-expanded="<?= $consentMode === 'off' ? 'false' : 'true' ?>"><span class="gsk-card__title">Privacy Consent <span class="gsk-help" title="Controls whether optional Google scripts wait for visitor consent.">?</span></span><span class="gsk-card__summary"><?= gsk_e($consentLabels[$consentMode]) ?></span></button>
+      <div class="gsk-card__body" data-gsk-card-body <?= $consentMode === 'off' ? 'hidden' : '' ?>>
+        <p class="gsk-meta">When enabled, Analytics, Tag Manager, and AdSense are not downloaded until the visitor accepts. Site verification remains active because it does not set visitor cookies.</p>
+        <div class="gsk-field-row">
+          <div class="gsk-field">
+            <label class="gsk-field__label" for="gsk-consent-mode">Consent behavior</label>
+            <select id="gsk-consent-mode" name="consent_mode" class="inpud">
+              <option value="off" <?= $consentMode === 'off' ? 'selected' : '' ?>>Disabled - load configured snippets normally</option>
+              <option value="regional" <?= $consentMode === 'regional' ? 'selected' : '' ?>>Regional - strict choices for EU/EEA/UK visitors</option>
+              <option value="strict" <?= $consentMode === 'strict' ? 'selected' : '' ?>>Strict - show Accept and Reject to everyone</option>
+            </select>
+            <span class="gsk-field__hint">Regional mode reads a country header supplied by Cloudflare, CloudFront, or Vercel. If no supported country header is available, it safely uses the strict banner.</span>
+          </div>
+        </div>
+        <div class="gsk-field-row">
+          <div class="gsk-field">
+            <label class="gsk-field__label" for="gsk-consent-region-source">Trusted country provider</label>
+            <select id="gsk-consent-region-source" name="consent_region_source" class="inpud">
+              <option value="none" <?= $consentRegionSource === 'none' ? 'selected' : '' ?>>None - always use strict fallback</option>
+              <option value="cloudflare" <?= $consentRegionSource === 'cloudflare' ? 'selected' : '' ?>>Cloudflare (CF-IPCountry)</option>
+              <option value="cloudfront" <?= $consentRegionSource === 'cloudfront' ? 'selected' : '' ?>>Amazon CloudFront (CloudFront-Viewer-Country)</option>
+              <option value="vercel" <?= $consentRegionSource === 'vercel' ? 'selected' : '' ?>>Vercel (X-Vercel-IP-Country)</option>
+            </select>
+            <span class="gsk-field__hint">Select a provider only when visitors cannot bypass it and the origin strips client-supplied copies of its country header.</span>
+          </div>
+        </div>
+        <div class="gsk-field-row">
+          <div class="gsk-field">
+            <label class="gsk-field__label" for="gsk-privacy-url">Privacy policy URL</label>
+            <input type="text" id="gsk-privacy-url" name="privacy_url" class="inpud" value="<?= gsk_e($privacyUrl) ?>" placeholder="/privacy-policy/">
+            <span class="gsk-field__hint">Optional relative path or HTTP(S) URL displayed in the consent banner.</span>
+          </div>
+        </div>
+        <p class="gsk-meta"><strong>Important:</strong> Regional mode sends a private, no-store response to prevent country-specific choices from leaking through shared page caches. Jy Metrics controls only snippets injected by this plugin; review tags configured inside Tag Manager and scripts added by themes or other plugins separately.</p>
+      </div>
+    </div>
+
+    <div class="gsk-card gsk-card--collapsible" data-gsk-card>
       <button type="button" class="gsk-card__head gsk-card__toggle" aria-expanded="false"><span class="gsk-card__title">Manual Overrides <span class="gsk-help" title="Optional public-site snippets. These IDs do not grant Jy Metrics access to Google APIs.">?</span></span><span class="gsk-card__summary"><?= $manualOverrideCount ?> override<?= $manualOverrideCount === 1 ? '' : 's' ?></span></button>
       <div class="gsk-card__body" data-gsk-card-body hidden>
         <p class="gsk-meta">Use these only when you already have a Google snippet ID. They inject the matching frontend snippet and do not grant Jy Metrics API access.</p>
@@ -202,7 +257,7 @@ function gskServiceRow(string $label, bool $active, string $value, string $link 
   <div class="gsk-card gsk-card--collapsible" data-gsk-card>
     <button type="button" class="gsk-card__head gsk-card__toggle" aria-expanded="false"><span class="gsk-card__title">Active Snippets <span class="gsk-help" title="Public frontend code currently injected by Jy Metrics.">?</span></span><span class="gsk-card__summary"><?= $manualOverrideCount ?> active candidate<?= $manualOverrideCount === 1 ? '' : 's' ?></span></button>
     <div class="gsk-card__body" data-gsk-card-body hidden>
-      <p class="gsk-meta">These are codes currently injected into the public site. A snippet can be active from a manual override even when its service is not connected through OAuth.</p>
+      <p class="gsk-meta">These are codes configured for the public site. A snippet can be active from a manual override even when its service is not connected through OAuth.<?= $consentMode !== 'off' ? ' Optional scripts remain blocked until the visitor accepts.' : '' ?></p>
       <ul class="gsk-list">
         <li><span class="gsk-dot gsk-dot--<?= $measurementId !== '' ? 'on' : 'off' ?>"></span> Google Analytics 4 — <?= $measurementId !== '' ? gsk_e($measurementId) : 'Not configured' ?></li>
         <li><span class="gsk-dot gsk-dot--<?= $gtmId !== '' ? 'on' : 'off' ?>"></span> Tag Manager — <?= $gtmId !== '' ? gsk_e($gtmId) : 'Not configured' ?></li>
@@ -241,6 +296,7 @@ function gskServiceRow(string $label, bool $active, string $value, string $link 
 .gsk-service-link:hover { text-decoration: underline; }
 .gsk-field { display: flex; flex-direction: column; gap: .25rem; flex: 1 1 300px; min-width: 260px; }
 .gsk-field label { font-size: .75rem; color: var(--adam-muted); font-weight: 600; }
+.gsk-field__hint { font-size: .75rem; color: var(--adam-muted); line-height: 1.45; }
 .gsk-field-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
 .gsk-field-row:last-child { margin-bottom: 0; }
 .gsk-copy-row { display: flex; gap: .5rem; align-items: center; }

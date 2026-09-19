@@ -26,6 +26,9 @@ const GSK_GTM_ID_KEY        = 'gsk_gtm_id';
 const GSK_ADSENSE_CLIENT_KEY = 'gsk_adsense_client';
 const GSK_SITE_VERIFICATION_KEY = 'gsk_site_verification';
 const GSK_PAGESPEED_API_KEY = 'gsk_pagespeed_api_key';
+const GSK_CONSENT_MODE_KEY = 'gsk_consent_mode';
+const GSK_CONSENT_REGION_SOURCE_KEY = 'gsk_consent_region_source';
+const GSK_PRIVACY_URL_KEY = 'gsk_privacy_url';
 
 function gsk_plugin_dir(): string {
     return defined('PLUGIN_PATH') ? PLUGIN_PATH . '/' . GSK_PLUGIN_NAME : __DIR__;
@@ -50,6 +53,7 @@ function gsk_all_settings(PDO $pdo): array {
         GSK_USER_EMAIL_KEY, GSK_SCOPES_KEY,
         GSK_SITE_URL_KEY, GSK_MEASUREMENT_ID_KEY, GSK_GA4_PROPERTY_ID_KEY, GSK_GTM_ID_KEY,
         GSK_ADSENSE_CLIENT_KEY, GSK_SITE_VERIFICATION_KEY, GSK_PAGESPEED_API_KEY,
+        GSK_CONSENT_MODE_KEY, GSK_CONSENT_REGION_SOURCE_KEY, GSK_PRIVACY_URL_KEY,
     ];
     $out = [];
     foreach ($keys as $k) {
@@ -62,13 +66,58 @@ function gsk_t(string $source): string {
     return function_exists('__') ? __($source, GSK_I18N_SCOPE) : $source;
 }
 
+function gsk_consent_mode(PDO $pdo): string {
+    $mode = gsk_setting($pdo, GSK_CONSENT_MODE_KEY, 'off');
+    return in_array($mode, ['off', 'regional', 'strict'], true) ? $mode : 'off';
+}
+
+function gsk_valid_privacy_url(string $url): bool {
+    if ($url === '') return true;
+    if (preg_match('/[\x00-\x20\x7F]/', $url) === 1 || str_contains($url, '\\')) return false;
+    if (str_starts_with($url, '/') && !str_starts_with($url, '//')) return true;
+    $parts = parse_url($url);
+    return is_array($parts)
+        && in_array(strtolower((string)($parts['scheme'] ?? '')), ['http', 'https'], true)
+        && (string)($parts['host'] ?? '') !== '';
+}
+
+function gsk_consent_region_source(PDO $pdo): string {
+    $source = gsk_setting($pdo, GSK_CONSENT_REGION_SOURCE_KEY, 'none');
+    return in_array($source, ['none', 'cloudflare', 'cloudfront', 'vercel'], true) ? $source : 'none';
+}
+
+function gsk_consent_country_code(PDO $pdo): string {
+    $headers = [
+        'cloudflare' => 'HTTP_CF_IPCOUNTRY',
+        'cloudfront' => 'HTTP_CLOUDFRONT_VIEWER_COUNTRY',
+        'vercel' => 'HTTP_X_VERCEL_IP_COUNTRY',
+    ];
+    $header = $headers[gsk_consent_region_source($pdo)] ?? '';
+    if ($header === '') return '';
+    $country = strtoupper(trim((string)($_SERVER[$header] ?? '')));
+    return preg_match('/\A[A-Z]{2}\z/', $country) === 1 && !in_array($country, ['XX', 'T1'], true) ? $country : '';
+}
+
+function gsk_consent_is_strict(PDO $pdo): bool {
+    $mode = gsk_consent_mode($pdo);
+    if ($mode === 'strict') return true;
+    if ($mode !== 'regional') return false;
+    $country = gsk_consent_country_code($pdo);
+    if ($country === '') return true;
+    return in_array($country, [
+        'AT', 'AX', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GR',
+        'GF', 'GP', 'HU', 'IE', 'IS', 'IT', 'LI', 'LT', 'LU', 'LV', 'MF', 'MQ',
+        'MT', 'NL', 'NO', 'PL', 'PT', 'RE', 'RO', 'SE', 'SI', 'SK', 'YT', 'GB',
+    ], true);
+}
+
 function gsk_help_tooltip(string $id, string $label, string $description): string {
     return '<button type="button" class="gsk-metric__help" aria-label="' . gsk_e($label) . '" aria-describedby="' . gsk_e($id) . '">?</button>'
         . '<span class="gsk-metric__tooltip" id="' . gsk_e($id) . '" role="tooltip">' . gsk_e($description) . '</span>';
 }
 
 function gsk_register_translations(PDO $pdo): void {
-    if (gsk_setting($pdo, GSK_I18N_VERSION_KEY) === '6') return;
+    if (gsk_setting($pdo, GSK_I18N_VERSION_KEY) === '7') return;
 
     $translations = [
         'Active users' => 'Pengguna aktif',
@@ -106,6 +155,14 @@ function gsk_register_translations(PDO $pdo): void {
         'Google Search clicks and impressions from Search Console for the selected period.' => 'Klik dan impresi Google Penelusuran dari Search Console untuk periode yang dipilih.',
         'Pages with the most views during the selected period.' => 'Halaman dengan tampilan terbanyak selama periode yang dipilih.',
         'Search Console data is usually available 2-3 days later. Latest available: {date}.' => 'Data Search Console biasanya tersedia 2-3 hari kemudian. Data terbaru yang tersedia: {date}.',
+        'Privacy choices' => 'Pilihan privasi',
+        'Cookies on this site' => 'Cookie di situs ini',
+        'We use optional analytics and advertising cookies. You can accept or reject them without losing access to the site.' => 'Kami menggunakan cookie analitik dan iklan yang bersifat opsional. Anda dapat menerima atau menolaknya tanpa kehilangan akses ke situs.',
+        'We use optional analytics and advertising services to understand site usage. They are loaded only after you accept.' => 'Kami menggunakan layanan analitik dan iklan opsional untuk memahami penggunaan situs. Layanan tersebut hanya dimuat setelah Anda menyetujuinya.',
+        'Accept all' => 'Terima semua',
+        'Accept cookies' => 'Terima cookie',
+        'Reject optional' => 'Tolak yang opsional',
+        'Privacy policy' => 'Kebijakan privasi',
     ];
 
     try {
@@ -113,7 +170,7 @@ function gsk_register_translations(PDO $pdo): void {
         foreach ($translations as $source => $value) {
             $stmt->execute([GSK_I18N_SCOPE, $source, $value, 'id']);
         }
-        gsk_save_setting($pdo, GSK_I18N_VERSION_KEY, '6');
+        gsk_save_setting($pdo, GSK_I18N_VERSION_KEY, '7');
     } catch (Throwable $e) {
         error_log('[jy-metrics] Could not register translations: ' . $e->getMessage());
     }
@@ -649,17 +706,58 @@ add_action('plugins_loaded', function (): void {
     if ($pdo instanceof PDO) gsk_register_translations($pdo);
 });
 
+add_action('init', function (): void {
+    $pdo = $GLOBALS['pdo'] ?? null;
+    if (!($pdo instanceof PDO) || gsk_consent_mode($pdo) !== 'regional' || headers_sent()) return;
+    if (gsk_setting($pdo, GSK_MEASUREMENT_ID_KEY) === ''
+        && gsk_setting($pdo, GSK_GTM_ID_KEY) === ''
+        && gsk_setting($pdo, GSK_ADSENSE_CLIENT_KEY) === '') return;
+    $varyHeader = match (gsk_consent_region_source($pdo)) {
+        'cloudflare' => 'CF-IPCountry',
+        'cloudfront' => 'CloudFront-Viewer-Country',
+        'vercel' => 'X-Vercel-IP-Country',
+        default => '',
+    };
+    if ($varyHeader === '') return;
+    header('Cache-Control: private, no-store, max-age=0', true);
+    header('Vary: ' . $varyHeader, false);
+});
+
 // ── Frontend snippet injection ──
 add_action('jy_head', function (): void {
     $pdo = $GLOBALS['pdo'] ?? null;
     if (!($pdo instanceof PDO)) return;
     $measurementId = gsk_setting($pdo, GSK_MEASUREMENT_ID_KEY);
     $gtmId = gsk_setting($pdo, GSK_GTM_ID_KEY);
-    if ($measurementId !== '' || $gtmId !== '') {
+    $adsense = gsk_setting($pdo, GSK_ADSENSE_CLIENT_KEY);
+    $consentMode = gsk_consent_mode($pdo);
+    if ($consentMode !== 'off' && ($measurementId !== '' || $gtmId !== '' || $adsense !== '')) {
         $trackingConfig = json_encode([
             'measurementId' => $measurementId,
             'gtmId' => $gtmId,
-        ], JSON_UNESCAPED_SLASHES);
+            'adsense' => $adsense,
+            'strict' => gsk_consent_is_strict($pdo),
+        ], JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+        echo '<script>(function(c){' . "\n";
+        echo "window.dataLayer=window.dataLayer||[];\n";
+        echo "window.gtag=window.gtag||function(){dataLayer.push(arguments);};\n";
+        echo "var denied={analytics_storage:'denied',ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied'};var granted={analytics_storage:'granted',ad_storage:'granted',ad_user_data:'granted',ad_personalization:'granted'};gtag('consent','default',denied);\n";
+        echo "var key='jy_metrics_consent_v1',state='',maxAge=15552000000;try{var saved=JSON.parse(localStorage.getItem(key)||'null');if(saved&&Date.now()-saved.savedAt<=maxAge&&(saved.choice==='accepted'||saved.choice==='rejected'))state=saved.choice;}catch(e){}\n";
+        echo "var loaded=false;function load(){if(loaded||state!=='accepted')return;loaded=true;gtag('consent','update',granted);var first=document.scripts[0];function add(src,crossOrigin){var script=document.createElement('script');script.async=true;script.src=src;if(crossOrigin)script.crossOrigin='anonymous';first.parentNode.insertBefore(script,first);}\n";
+        echo "if(c.measurementId){gtag('js',new Date());gtag('config',c.measurementId);}\n";
+        echo "if(c.measurementId)add('https://www.googletagmanager.com/gtag/js?id='+encodeURIComponent(c.measurementId));\n";
+        echo "if(c.gtmId){dataLayer.push({'gtm.start':Date.now(),event:'gtm.js'});add('https://www.googletagmanager.com/gtm.js?id='+encodeURIComponent(c.gtmId));}\n";
+        echo "if(c.adsense)add('https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client='+encodeURIComponent(c.adsense),true);}\n";
+        echo "function clearAnalyticsCookies(){var domains=[''],parts=location.hostname.split('.');for(var i=0;i<parts.length-1;i++)domains.push('.'+parts.slice(i).join('.'));document.cookie.split(';').forEach(function(value){var name=value.split('=')[0].trim();if(name!=='_gid'&&name!=='_gat'&&name.indexOf('_ga')!==0)return;domains.forEach(function(domain){document.cookie=name+'=; Max-Age=0; Path=/; SameSite=Lax'+(domain?'; Domain='+domain:'');});});}\n";
+        echo "function notify(){dispatchEvent(new CustomEvent('jy-metrics-consent-change',{detail:{state:state,strict:c.strict}}));}\n";
+        echo "function save(){try{localStorage.setItem(key,JSON.stringify({choice:state,savedAt:Date.now()}));}catch(e){}}window.jyMetricsConsent={state:state,strict:c.strict,accept:function(){state='accepted';this.state=state;save();gtag('consent','update',granted);load();notify();},reject:function(){state='rejected';this.state=state;save();gtag('consent','update',denied);clearAnalyticsCookies();if(loaded){location.reload();return;}notify();}};\n";
+        echo "if(state==='accepted'){gtag('consent','update',granted);['pointerdown','touchstart','keydown','scroll'].forEach(function(event){addEventListener(event,load,{once:true,passive:true});});function afterLoad(){setTimeout(load,5000);}if(document.readyState==='complete')afterLoad();else addEventListener('load',afterLoad,{once:true});}\n";
+        echo '})(' . $trackingConfig . ');</script>' . "\n";
+    } elseif ($measurementId !== '' || $gtmId !== '') {
+        $trackingConfig = json_encode([
+            'measurementId' => $measurementId,
+            'gtmId' => $gtmId,
+        ], JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
         echo '<script>(function(c){' . "\n";
         echo "window.dataLayer=window.dataLayer||[];\n";
         echo "if(c.measurementId){window.gtag=window.gtag||function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',c.measurementId);}\n";
@@ -679,16 +777,35 @@ add_action('jy_head', function (): void {
 add_action('jy_footer', function (): void {
     $pdo = $GLOBALS['pdo'] ?? null;
     if (!($pdo instanceof PDO)) return;
+    $consentMode = gsk_consent_mode($pdo);
     $gtmId = gsk_setting($pdo, GSK_GTM_ID_KEY);
-    if ($gtmId !== '') {
+    if ($consentMode === 'off' && $gtmId !== '') {
         $id = gsk_e($gtmId);
         echo "<noscript><iframe src=\"https://www.googletagmanager.com/ns.html?id={$id}\" height=\"0\" width=\"0\" style=\"display:none;visibility:hidden\"></iframe></noscript>\n";
     }
     $adsense = gsk_setting($pdo, GSK_ADSENSE_CLIENT_KEY);
-    if ($adsense !== '') {
+    if ($consentMode === 'off' && $adsense !== '') {
         $client = gsk_e($adsense);
         echo "<script async src=\"https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={$client}\" crossorigin=\"anonymous\"></script>\n";
     }
+    if ($consentMode === 'off' || ($gtmId === '' && $adsense === '' && gsk_setting($pdo, GSK_MEASUREMENT_ID_KEY) === '')) return;
+
+    $strict = gsk_consent_is_strict($pdo);
+    $privacyUrl = gsk_setting($pdo, GSK_PRIVACY_URL_KEY);
+    if (!gsk_valid_privacy_url($privacyUrl)) $privacyUrl = '';
+    $title = $strict ? gsk_t('Privacy choices') : gsk_t('Cookies on this site');
+    $message = $strict
+        ? gsk_t('We use optional analytics and advertising cookies. You can accept or reject them without losing access to the site.')
+        : gsk_t('We use optional analytics and advertising services to understand site usage. They are loaded only after you accept.');
+    echo '<aside class="jym-consent" id="jym-consent" role="region" aria-live="polite" aria-labelledby="jym-consent-title" tabindex="-1" hidden>';
+    echo '<div class="jym-consent__copy"><strong id="jym-consent-title">' . gsk_e($title) . '</strong><p>' . gsk_e($message) . '</p>';
+    if ($privacyUrl !== '') echo '<a href="' . gsk_e($privacyUrl) . '">' . gsk_e(gsk_t('Privacy policy')) . '</a>';
+    echo '</div><div class="jym-consent__actions">';
+    echo '<button type="button" class="jym-consent__reject" data-jym-reject' . ($strict ? '' : ' hidden') . '>' . gsk_e(gsk_t('Reject optional')) . '</button>';
+    echo '<button type="button" class="jym-consent__accept" data-jym-accept>' . gsk_e(gsk_t($strict ? 'Accept all' : 'Accept cookies')) . '</button>';
+    echo '</div></aside><button type="button" class="jym-consent-choice" data-jym-open hidden>' . gsk_e(gsk_t('Privacy choices')) . '</button>';
+    echo '<style>.jym-consent{position:fixed;z-index:2147483000;left:1rem;right:1rem;bottom:1rem;display:flex;align-items:center;justify-content:space-between;gap:1.25rem;max-width:920px;margin:auto;padding:1rem 1.1rem;border:1px solid rgba(148,163,184,.35);border-radius:14px;background:#111827;color:#f8fafc;box-shadow:0 18px 50px rgba(15,23,42,.35);font:14px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.jym-consent[hidden],.jym-consent-choice[hidden]{display:none}.jym-consent__copy strong{display:block;margin-bottom:.2rem;font-size:1rem}.jym-consent__copy p{margin:0;color:#cbd5e1}.jym-consent__copy a{display:inline-block;margin-top:.35rem;color:#93c5fd}.jym-consent__actions{display:flex;align-items:center;gap:.6rem;flex:0 0 auto}.jym-consent__actions button,.jym-consent-choice{min-height:40px;padding:.55rem .85rem;border-radius:9px;border:1px solid #64748b;font:600 13px/1 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;cursor:pointer}.jym-consent__reject{background:transparent;color:#f8fafc}.jym-consent__accept{border-color:#2563eb!important;background:#2563eb;color:#fff}.jym-consent-choice{position:fixed;z-index:2147482999;left:1rem;bottom:1rem;background:#111827;color:#fff;box-shadow:0 8px 24px rgba(15,23,42,.25)}@media(max-width:680px){.jym-consent{align-items:stretch;flex-direction:column}.jym-consent__actions{display:grid;grid-template-columns:1fr 1fr}.jym-consent__actions button{width:100%}.jym-consent__reject[hidden]+.jym-consent__accept{grid-column:1/-1}}</style>';
+    echo '<script>(function(){var api=window.jyMetricsConsent,banner=document.getElementById("jym-consent"),open=document.querySelector("[data-jym-open]"),accept=document.querySelector("[data-jym-accept]"),reject=document.querySelector("[data-jym-reject]");if(!api||!banner||!open||!accept)return;function render(show,moveFocus){var decided=api.state==="accepted"||api.state==="rejected";banner.hidden=!show;open.hidden=show||!decided;if(reject)reject.hidden=!api.strict&&!decided;if(moveFocus)(show?(reject&&!reject.hidden?reject:accept):open).focus();}render(!api.state,false);accept.addEventListener("click",function(){api.accept();render(false,true);});if(reject)reject.addEventListener("click",function(){api.reject();render(false,true);});open.addEventListener("click",function(){render(true,true);});})();</script>' . "\n";
 });
 
 // ── Uninstall cleanup ──
@@ -701,7 +818,8 @@ add_action('plugin_uninstall', function (string $name): void {
         GSK_ACCESS_TOKEN_KEY, GSK_REFRESH_TOKEN_KEY, GSK_TOKEN_EXPIRES_KEY,
         GSK_USER_EMAIL_KEY, GSK_SCOPES_KEY,
         GSK_SITE_URL_KEY, GSK_MEASUREMENT_ID_KEY, GSK_GA4_PROPERTY_ID_KEY, GSK_GTM_ID_KEY,
-        GSK_ADSENSE_CLIENT_KEY, GSK_SITE_VERIFICATION_KEY, GSK_PAGESPEED_API_KEY, GSK_I18N_VERSION_KEY,
+        GSK_ADSENSE_CLIENT_KEY, GSK_SITE_VERIFICATION_KEY, GSK_PAGESPEED_API_KEY,
+        GSK_CONSENT_MODE_KEY, GSK_CONSENT_REGION_SOURCE_KEY, GSK_PRIVACY_URL_KEY, GSK_I18N_VERSION_KEY,
     ];
     gsk_disconnect($pdo);
     $placeholders = implode(',', array_fill(0, count($keys), '?'));
