@@ -38,41 +38,34 @@ $render = static function (string $hook): string {
 $check(gsk_valid_privacy_url('') && gsk_valid_privacy_url('/privacy/') && gsk_valid_privacy_url('https://example.com/privacy'), 'safe privacy URLs are accepted');
 $check(!gsk_valid_privacy_url('//example.com') && !gsk_valid_privacy_url('/\\example.com') && !gsk_valid_privacy_url('javascript:alert(1)') && !gsk_valid_privacy_url('/bad path'), 'ambiguous and executable privacy URLs are rejected');
 
-$GLOBALS['contract_settings'] = [GSK_CONSENT_MODE_KEY => 'regional', GSK_CONSENT_REGION_SOURCE_KEY => 'cloudflare'];
-$_SERVER['HTTP_CF_IPCOUNTRY'] = 'DE';
-$_SERVER['HTTP_X_VERCEL_IP_COUNTRY'] = 'US';
-$check(gsk_consent_country_code($pdo) === 'DE' && gsk_consent_is_strict($pdo), 'only the selected provider determines an EU strict response');
-$strictCountries = [
-    'AT', 'AX', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GR',
-    'GF', 'GP', 'HU', 'IE', 'IS', 'IT', 'LI', 'LT', 'LU', 'LV', 'MF', 'MQ', 'MT', 'NL',
-    'NO', 'PL', 'PT', 'RE', 'RO', 'SE', 'SI', 'SK', 'YT', 'GB',
-];
-$allStrict = true;
-foreach ($strictCountries as $country) {
-    $_SERVER['HTTP_CF_IPCOUNTRY'] = $country;
-    if (!gsk_consent_is_strict($pdo)) $allStrict = false;
-}
-$check($allStrict, 'EU, EEA, UK, and separately coded EU outermost regions receive strict choices');
-$_SERVER['HTTP_CF_IPCOUNTRY'] = 'US';
-$check(!gsk_consent_is_strict($pdo), 'a known non-EU country receives the simple regional banner');
-unset($_SERVER['HTTP_CF_IPCOUNTRY']);
-$check(gsk_consent_is_strict($pdo), 'a missing regional header fails safely to strict');
-$GLOBALS['contract_settings'][GSK_CONSENT_REGION_SOURCE_KEY] = 'none';
-$_SERVER['HTTP_CF_IPCOUNTRY'] = 'US';
-$check(gsk_consent_country_code($pdo) === '' && gsk_consent_is_strict($pdo), 'untrusted country headers are ignored without an explicit provider');
+$GLOBALS['contract_settings'] = [GSK_CONSENT_MODE_KEY => 'choices'];
+$check(gsk_consent_mode($pdo) === 'choices', 'global category consent mode is accepted');
+$GLOBALS['contract_settings'][GSK_CONSENT_MODE_KEY] = 'regional';
+$check(gsk_consent_mode($pdo) === 'choices', 'legacy regional mode migrates safely to global choices');
+$GLOBALS['contract_settings'][GSK_CONSENT_MODE_KEY] = 'strict';
+$check(gsk_consent_mode($pdo) === 'choices', 'legacy strict mode migrates safely to global choices');
+$GLOBALS['contract_settings'][GSK_CONSENT_MODE_KEY] = 'invalid';
+$check(gsk_consent_mode($pdo) === 'choices', 'unknown nonempty consent modes fail safely to category choices');
 
 $GLOBALS['contract_settings'] = [
     GSK_MEASUREMENT_ID_KEY => 'G-TEST',
     GSK_GTM_ID_KEY => 'GTM-TEST',
     GSK_ADSENSE_CLIENT_KEY => 'ca-pub-123',
-    GSK_CONSENT_MODE_KEY => 'strict',
-    GSK_CONSENT_REGION_SOURCE_KEY => 'none',
+    GSK_CONSENT_MODE_KEY => 'choices',
     GSK_PRIVACY_URL_KEY => '/privacy/',
 ];
 $head = $render('jy_head');
 $footer = $render('jy_footer');
-$check(str_contains($head, "gtag('consent','default',denied)") && str_contains($head, "state!=='accepted'"), 'consent mode defaults optional storage to denied and gates loading');
-$check(!str_contains($footer, '<script async src=') && !str_contains($footer, '<noscript>') && str_contains($footer, 'data-jym-reject'), 'strict mode renders choices without eager external tags');
+$check(str_contains($head, "gtag('consent','default',denied)") && str_contains($head, "key='jy_metrics_consent_v2'") && str_contains($head, "legacyKey='jy_metrics_consent_v1'"), 'category consent defaults optional storage to denied and migrates schema 1');
+$check(str_contains($head, 'navigator.globalPrivacyControl===true') && str_contains($head, "advertising:next.advertising===true&&!gpc"), 'Global Privacy Control cannot be overridden by an advertising choice');
+$check(str_contains($head, 'if(prefs.analytics&&!loaded.analytics)') && str_contains($head, 'if(prefs.advertising&&!loaded.advertising)'), 'Analytics and Advertising load through separate category gates');
+$check(str_contains($head, "addEventListener('storage'") && str_contains($head, 'adoptPreferences(incoming'), 'preference changes synchronize across open tabs');
+$check(str_contains($head, 'Number.isFinite(savedAt)') && str_contains($head, 'savedAt<=now+300000'), 'stored consent requires a bounded finite timestamp');
+$check(str_contains($head, 'savedAt:Number(legacy.savedAt)') && str_contains($head, 'savedAt:saved.savedAt'), 'automatic migration and GPC correction preserve the original consent timestamp');
+$check(str_contains($head, 'clearCookies(!prefs.analytics,!prefs.advertising)'), 'denied and expired categories clear known identifiers during startup');
+$check(str_contains($head, "name==='_ga'||name.indexOf('_ga_')===0") && str_contains($head, "name.indexOf('_gac')===0") && str_contains($head, "name.indexOf('__eoi')===0"), 'withdrawal separates known browser-readable analytics and advertising identifiers');
+$check(!str_contains($footer, '<script async src=') && !str_contains($footer, '<noscript>') && str_contains($footer, 'data-jym-manage') && str_contains($footer, 'data-jym-close'), 'category mode renders Accept, Manage, and rejecting close controls without eager external tags');
+$check(str_contains($footer, 'data-jym-analytics') && str_contains($footer, 'data-jym-advertising') && str_contains($footer, 'data-jym-reject-all'), 'preference panel exposes category controls and Reject all');
 $check(str_contains($footer, 'role="region"') && str_contains($footer, 'Privacy policy'), 'consent UI exposes accessible semantics and the configured policy link');
 
 $GLOBALS['contract_settings'][GSK_MEASUREMENT_ID_KEY] = '</script><script>alert(1)</script>';

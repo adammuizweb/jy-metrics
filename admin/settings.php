@@ -21,10 +21,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $messageType = 'error';
     } else {
         $consentModeInput = trim((string)($_POST['consent_mode'] ?? 'off'));
-        $consentRegionSourceInput = trim((string)($_POST['consent_region_source'] ?? 'none'));
         $privacyUrlInput = trim((string)($_POST['privacy_url'] ?? ''));
-        if (!in_array($consentModeInput, ['off', 'regional', 'strict'], true)
-            || !in_array($consentRegionSourceInput, ['none', 'cloudflare', 'cloudfront', 'vercel'], true)
+        if (!in_array($consentModeInput, ['off', 'choices'], true)
             || !gsk_valid_privacy_url($privacyUrlInput)) {
             $message = 'Invalid privacy consent settings.';
             $messageType = 'error';
@@ -38,7 +36,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             gsk_save_setting($pdo, GSK_SITE_VERIFICATION_KEY, trim((string)($_POST['site_verification'] ?? '')));
             gsk_save_setting($pdo, GSK_PAGESPEED_API_KEY, trim((string)($_POST['pagespeed_api_key'] ?? '')));
             gsk_save_setting($pdo, GSK_CONSENT_MODE_KEY, $consentModeInput);
-            gsk_save_setting($pdo, GSK_CONSENT_REGION_SOURCE_KEY, $consentRegionSourceInput);
             gsk_save_setting($pdo, GSK_PRIVACY_URL_KEY, $privacyUrlInput);
             $message = 'Settings saved.';
             $messageType = 'success';
@@ -60,9 +57,8 @@ $gtmId = $settings[GSK_GTM_ID_KEY] ?? '';
 $adsense = $settings[GSK_ADSENSE_CLIENT_KEY] ?? '';
 $verification = $settings[GSK_SITE_VERIFICATION_KEY] ?? '';
 $consentMode = gsk_consent_mode($pdo);
-$consentRegionSource = gsk_consent_region_source($pdo);
 $privacyUrl = $settings[GSK_PRIVACY_URL_KEY] ?? '';
-$consentLabels = ['off' => 'Disabled', 'regional' => 'Regional', 'strict' => 'Strict for everyone'];
+$consentLabels = ['off' => 'Disabled', 'choices' => 'Global privacy choices'];
 $hasClientId = ($settings[GSK_CLIENT_ID_KEY] ?? '') !== '';
 $hasClientSecret = ($settings[GSK_CLIENT_SECRET_KEY] ?? '') !== '';
 $hasOAuthCredentials = $hasClientId && $hasClientSecret;
@@ -171,28 +167,15 @@ function gskServiceRow(string $label, bool $active, string $value, string $link 
     <div class="gsk-card gsk-card--collapsible" data-gsk-card>
       <button type="button" class="gsk-card__head gsk-card__toggle" aria-expanded="<?= $consentMode === 'off' ? 'false' : 'true' ?>"><span class="gsk-card__title">Privacy Consent <span class="gsk-help" title="Controls whether optional Google scripts wait for visitor consent.">?</span></span><span class="gsk-card__summary"><?= gsk_e($consentLabels[$consentMode]) ?></span></button>
       <div class="gsk-card__body" data-gsk-card-body <?= $consentMode === 'off' ? 'hidden' : '' ?>>
-        <p class="gsk-meta">When enabled, Analytics, Tag Manager, and AdSense are not downloaded until the visitor accepts. Site verification remains active because it does not set visitor cookies.</p>
+        <p class="gsk-meta">When enabled, visitors can manage Analytics and Advertising separately. Optional Google scripts are not downloaded until the matching category is accepted. Site verification remains active because it does not set visitor cookies.</p>
         <div class="gsk-field-row">
           <div class="gsk-field">
             <label class="gsk-field__label" for="gsk-consent-mode">Consent behavior</label>
             <select id="gsk-consent-mode" name="consent_mode" class="inpud">
               <option value="off" <?= $consentMode === 'off' ? 'selected' : '' ?>>Disabled - load configured snippets normally</option>
-              <option value="regional" <?= $consentMode === 'regional' ? 'selected' : '' ?>>Regional - strict choices for EU/EEA/UK visitors</option>
-              <option value="strict" <?= $consentMode === 'strict' ? 'selected' : '' ?>>Strict - show Accept and Reject to everyone</option>
+              <option value="choices" <?= $consentMode === 'choices' ? 'selected' : '' ?>>Global privacy choices - category controls for everyone</option>
             </select>
-            <span class="gsk-field__hint">Regional mode reads a country header supplied by Cloudflare, CloudFront, or Vercel. If no supported country header is available, it safely uses the strict banner.</span>
-          </div>
-        </div>
-        <div class="gsk-field-row">
-          <div class="gsk-field">
-            <label class="gsk-field__label" for="gsk-consent-region-source">Trusted country provider</label>
-            <select id="gsk-consent-region-source" name="consent_region_source" class="inpud">
-              <option value="none" <?= $consentRegionSource === 'none' ? 'selected' : '' ?>>None - always use strict fallback</option>
-              <option value="cloudflare" <?= $consentRegionSource === 'cloudflare' ? 'selected' : '' ?>>Cloudflare (CF-IPCountry)</option>
-              <option value="cloudfront" <?= $consentRegionSource === 'cloudfront' ? 'selected' : '' ?>>Amazon CloudFront (CloudFront-Viewer-Country)</option>
-              <option value="vercel" <?= $consentRegionSource === 'vercel' ? 'selected' : '' ?>>Vercel (X-Vercel-IP-Country)</option>
-            </select>
-            <span class="gsk-field__hint">Select a provider only when visitors cannot bypass it and the origin strips client-supplied copies of its country header.</span>
+            <span class="gsk-field__hint">The close button rejects optional services. Global Privacy Control is honored by keeping Advertising disabled.</span>
           </div>
         </div>
         <div class="gsk-field-row">
@@ -202,7 +185,7 @@ function gskServiceRow(string $label, bool $active, string $value, string $link 
             <span class="gsk-field__hint">Optional relative path or HTTP(S) URL displayed in the consent banner.</span>
           </div>
         </div>
-        <p class="gsk-meta"><strong>Important:</strong> Regional mode sends a private, no-store response to prevent country-specific choices from leaking through shared page caches. Jy Metrics controls only snippets injected by this plugin; review tags configured inside Tag Manager and scripts added by themes or other plugins separately.</p>
+        <p class="gsk-meta"><strong>Important:</strong> Tag Manager is treated as Advertising because a container can run arbitrary marketing tags. Jy Metrics controls only snippets injected by this plugin; review scripts added by themes or other plugins separately.</p>
       </div>
     </div>
 

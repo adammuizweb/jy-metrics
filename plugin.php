@@ -68,7 +68,8 @@ function gsk_t(string $source): string {
 
 function gsk_consent_mode(PDO $pdo): string {
     $mode = gsk_setting($pdo, GSK_CONSENT_MODE_KEY, 'off');
-    return in_array($mode, ['off', 'regional', 'strict'], true) ? $mode : 'off';
+    if ($mode === '' || $mode === 'off') return 'off';
+    return 'choices';
 }
 
 function gsk_valid_privacy_url(string $url): bool {
@@ -81,43 +82,13 @@ function gsk_valid_privacy_url(string $url): bool {
         && (string)($parts['host'] ?? '') !== '';
 }
 
-function gsk_consent_region_source(PDO $pdo): string {
-    $source = gsk_setting($pdo, GSK_CONSENT_REGION_SOURCE_KEY, 'none');
-    return in_array($source, ['none', 'cloudflare', 'cloudfront', 'vercel'], true) ? $source : 'none';
-}
-
-function gsk_consent_country_code(PDO $pdo): string {
-    $headers = [
-        'cloudflare' => 'HTTP_CF_IPCOUNTRY',
-        'cloudfront' => 'HTTP_CLOUDFRONT_VIEWER_COUNTRY',
-        'vercel' => 'HTTP_X_VERCEL_IP_COUNTRY',
-    ];
-    $header = $headers[gsk_consent_region_source($pdo)] ?? '';
-    if ($header === '') return '';
-    $country = strtoupper(trim((string)($_SERVER[$header] ?? '')));
-    return preg_match('/\A[A-Z]{2}\z/', $country) === 1 && !in_array($country, ['XX', 'T1'], true) ? $country : '';
-}
-
-function gsk_consent_is_strict(PDO $pdo): bool {
-    $mode = gsk_consent_mode($pdo);
-    if ($mode === 'strict') return true;
-    if ($mode !== 'regional') return false;
-    $country = gsk_consent_country_code($pdo);
-    if ($country === '') return true;
-    return in_array($country, [
-        'AT', 'AX', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GR',
-        'GF', 'GP', 'HU', 'IE', 'IS', 'IT', 'LI', 'LT', 'LU', 'LV', 'MF', 'MQ',
-        'MT', 'NL', 'NO', 'PL', 'PT', 'RE', 'RO', 'SE', 'SI', 'SK', 'YT', 'GB',
-    ], true);
-}
-
 function gsk_help_tooltip(string $id, string $label, string $description): string {
     return '<button type="button" class="gsk-metric__help" aria-label="' . gsk_e($label) . '" aria-describedby="' . gsk_e($id) . '">?</button>'
         . '<span class="gsk-metric__tooltip" id="' . gsk_e($id) . '" role="tooltip">' . gsk_e($description) . '</span>';
 }
 
 function gsk_register_translations(PDO $pdo): void {
-    if (gsk_setting($pdo, GSK_I18N_VERSION_KEY) === '7') return;
+    if (gsk_setting($pdo, GSK_I18N_VERSION_KEY) === '8') return;
 
     $translations = [
         'Active users' => 'Pengguna aktif',
@@ -163,6 +134,20 @@ function gsk_register_translations(PDO $pdo): void {
         'Accept cookies' => 'Terima cookie',
         'Reject optional' => 'Tolak yang opsional',
         'Privacy policy' => 'Kebijakan privasi',
+        'We use optional analytics and advertising services. Choose what this site may load.' => 'Kami menggunakan layanan analitik dan iklan opsional. Pilih layanan yang boleh dimuat situs ini.',
+        'Manage choices' => 'Atur pilihan',
+        'Close and reject optional services' => 'Tutup dan tolak layanan opsional',
+        'Necessary' => 'Diperlukan',
+        'Required for core site functions and always active.' => 'Diperlukan untuk fungsi inti situs dan selalu aktif.',
+        'Analytics' => 'Analitik',
+        'Helps understand site usage through Google Analytics.' => 'Membantu memahami penggunaan situs melalui Google Analytics.',
+        'Advertising' => 'Periklanan',
+        'Allows Tag Manager, AdSense, and advertising personalization.' => 'Mengizinkan Tag Manager, AdSense, dan personalisasi iklan.',
+        'Always active' => 'Selalu aktif',
+        'Save choices' => 'Simpan pilihan',
+        'Reject all' => 'Tolak semua',
+        'Global Privacy Control is active. Advertising remains disabled.' => 'Global Privacy Control aktif. Periklanan tetap dinonaktifkan.',
+        'Tag Manager is treated as advertising because its container may run marketing tags.' => 'Tag Manager diperlakukan sebagai periklanan karena containernya dapat menjalankan tag pemasaran.',
     ];
 
     try {
@@ -170,7 +155,7 @@ function gsk_register_translations(PDO $pdo): void {
         foreach ($translations as $source => $value) {
             $stmt->execute([GSK_I18N_SCOPE, $source, $value, 'id']);
         }
-        gsk_save_setting($pdo, GSK_I18N_VERSION_KEY, '7');
+        gsk_save_setting($pdo, GSK_I18N_VERSION_KEY, '8');
     } catch (Throwable $e) {
         error_log('[jy-metrics] Could not register translations: ' . $e->getMessage());
     }
@@ -706,23 +691,6 @@ add_action('plugins_loaded', function (): void {
     if ($pdo instanceof PDO) gsk_register_translations($pdo);
 });
 
-add_action('init', function (): void {
-    $pdo = $GLOBALS['pdo'] ?? null;
-    if (!($pdo instanceof PDO) || gsk_consent_mode($pdo) !== 'regional' || headers_sent()) return;
-    if (gsk_setting($pdo, GSK_MEASUREMENT_ID_KEY) === ''
-        && gsk_setting($pdo, GSK_GTM_ID_KEY) === ''
-        && gsk_setting($pdo, GSK_ADSENSE_CLIENT_KEY) === '') return;
-    $varyHeader = match (gsk_consent_region_source($pdo)) {
-        'cloudflare' => 'CF-IPCountry',
-        'cloudfront' => 'CloudFront-Viewer-Country',
-        'vercel' => 'X-Vercel-IP-Country',
-        default => '',
-    };
-    if ($varyHeader === '') return;
-    header('Cache-Control: private, no-store, max-age=0', true);
-    header('Vary: ' . $varyHeader, false);
-});
-
 // ── Frontend snippet injection ──
 add_action('jy_head', function (): void {
     $pdo = $GLOBALS['pdo'] ?? null;
@@ -736,22 +704,21 @@ add_action('jy_head', function (): void {
             'measurementId' => $measurementId,
             'gtmId' => $gtmId,
             'adsense' => $adsense,
-            'strict' => gsk_consent_is_strict($pdo),
         ], JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
         echo '<script>(function(c){' . "\n";
         echo "window.dataLayer=window.dataLayer||[];\n";
         echo "window.gtag=window.gtag||function(){dataLayer.push(arguments);};\n";
-        echo "var denied={analytics_storage:'denied',ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied'};var granted={analytics_storage:'granted',ad_storage:'granted',ad_user_data:'granted',ad_personalization:'granted'};gtag('consent','default',denied);\n";
-        echo "var key='jy_metrics_consent_v1',state='',maxAge=15552000000;try{var saved=JSON.parse(localStorage.getItem(key)||'null');if(saved&&Date.now()-saved.savedAt<=maxAge&&(saved.choice==='accepted'||saved.choice==='rejected'))state=saved.choice;}catch(e){}\n";
-        echo "var loaded=false;function load(){if(loaded||state!=='accepted')return;loaded=true;gtag('consent','update',granted);var first=document.scripts[0];function add(src,crossOrigin){var script=document.createElement('script');script.async=true;script.src=src;if(crossOrigin)script.crossOrigin='anonymous';first.parentNode.insertBefore(script,first);}\n";
-        echo "if(c.measurementId){gtag('js',new Date());gtag('config',c.measurementId);}\n";
-        echo "if(c.measurementId)add('https://www.googletagmanager.com/gtag/js?id='+encodeURIComponent(c.measurementId));\n";
-        echo "if(c.gtmId){dataLayer.push({'gtm.start':Date.now(),event:'gtm.js'});add('https://www.googletagmanager.com/gtm.js?id='+encodeURIComponent(c.gtmId));}\n";
-        echo "if(c.adsense)add('https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client='+encodeURIComponent(c.adsense),true);}\n";
-        echo "function clearAnalyticsCookies(){var domains=[''],parts=location.hostname.split('.');for(var i=0;i<parts.length-1;i++)domains.push('.'+parts.slice(i).join('.'));document.cookie.split(';').forEach(function(value){var name=value.split('=')[0].trim();if(name!=='_gid'&&name!=='_gat'&&name.indexOf('_ga')!==0)return;domains.forEach(function(domain){document.cookie=name+'=; Max-Age=0; Path=/; SameSite=Lax'+(domain?'; Domain='+domain:'');});});}\n";
-        echo "function notify(){dispatchEvent(new CustomEvent('jy-metrics-consent-change',{detail:{state:state,strict:c.strict}}));}\n";
-        echo "function save(){try{localStorage.setItem(key,JSON.stringify({choice:state,savedAt:Date.now()}));}catch(e){}}window.jyMetricsConsent={state:state,strict:c.strict,accept:function(){state='accepted';this.state=state;save();gtag('consent','update',granted);load();notify();},reject:function(){state='rejected';this.state=state;save();gtag('consent','update',denied);clearAnalyticsCookies();if(loaded){location.reload();return;}notify();}};\n";
-        echo "if(state==='accepted'){gtag('consent','update',granted);['pointerdown','touchstart','keydown','scroll'].forEach(function(event){addEventListener(event,load,{once:true,passive:true});});function afterLoad(){setTimeout(load,5000);}if(document.readyState==='complete')afterLoad();else addEventListener('load',afterLoad,{once:true});}\n";
+        echo "var denied={analytics_storage:'denied',ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied'};gtag('consent','default',denied);\n";
+        echo "var key='jy_metrics_consent_v2',legacyKey='jy_metrics_consent_v1',maxAge=15552000000,gpc=navigator.globalPrivacyControl===true,decided=false,prefs={analytics:false,advertising:false};\n";
+        echo "function validSavedAt(value){var savedAt=Number(value),now=Date.now();return Number.isFinite(savedAt)&&savedAt>0&&savedAt<=now+300000&&now-savedAt<=maxAge;}function normalize(value){if(!value||typeof value!=='object'||value.policyVersion!==2||!validSavedAt(value.savedAt))return null;if(typeof value.analytics!=='boolean'||typeof value.advertising!=='boolean')return null;return{analytics:value.analytics,advertising:gpc?false:value.advertising,savedAt:Number(value.savedAt)};}\n";
+        echo "try{var rawSaved=JSON.parse(localStorage.getItem(key)||'null'),saved=normalize(rawSaved);if(saved){prefs=saved;decided=true;if(gpc&&rawSaved.advertising)localStorage.setItem(key,JSON.stringify({analytics:prefs.analytics,advertising:false,savedAt:saved.savedAt,policyVersion:2}));}else{var legacy=JSON.parse(localStorage.getItem(legacyKey)||'null');if(legacy&&validSavedAt(legacy.savedAt)&&(legacy.choice==='accepted'||legacy.choice==='rejected')){decided=true;prefs={analytics:legacy.choice==='accepted',advertising:legacy.choice==='accepted'&&!gpc};localStorage.setItem(key,JSON.stringify({analytics:prefs.analytics,advertising:prefs.advertising,savedAt:Number(legacy.savedAt),policyVersion:2}));localStorage.removeItem(legacyKey);}}}catch(e){}\n";
+        echo "function consentValues(){return{analytics_storage:prefs.analytics?'granted':'denied',ad_storage:prefs.advertising?'granted':'denied',ad_user_data:prefs.advertising?'granted':'denied',ad_personalization:prefs.advertising?'granted':'denied'};}function applyConsent(){gtag('consent','update',consentValues());}applyConsent();\n";
+        echo "var loaded={analytics:false,advertising:false};function add(src,crossOrigin){var script=document.createElement('script'),first=document.scripts[0];script.async=true;script.src=src;if(crossOrigin)script.crossOrigin='anonymous';first.parentNode.insertBefore(script,first);}\n";
+        echo "function loadAllowed(){if(prefs.analytics&&!loaded.analytics){loaded.analytics=true;if(c.measurementId){gtag('js',new Date());gtag('config',c.measurementId);add('https://www.googletagmanager.com/gtag/js?id='+encodeURIComponent(c.measurementId));}}if(prefs.advertising&&!loaded.advertising){loaded.advertising=true;if(c.gtmId){dataLayer.push({'gtm.start':Date.now(),event:'gtm.js'});add('https://www.googletagmanager.com/gtm.js?id='+encodeURIComponent(c.gtmId));}if(c.adsense)add('https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client='+encodeURIComponent(c.adsense),true);}}\n";
+        echo "function clearCookies(analytics,advertising){var domains=[''],parts=location.hostname.split('.');for(var i=0;i<parts.length-1;i++)domains.push('.'+parts.slice(i).join('.'));document.cookie.split(';').forEach(function(value){var name=value.split('=')[0].trim(),remove=analytics&&(name==='_gid'||name==='_gat'||name.indexOf('_gat_')===0||name==='_ga'||name.indexOf('_ga_')===0||name==='AMP_TOKEN'||name==='FPLC')||advertising&&(name==='FPAU'||name.indexOf('_gcl')===0||name.indexOf('_gac')===0||name.indexOf('__gads')===0||name.indexOf('__gpi')===0||name.indexOf('__eoi')===0);if(!remove)return;domains.forEach(function(domain){document.cookie=name+'=; Max-Age=0; Path=/; SameSite=Lax'+(domain?'; Domain='+domain:'');});});}clearCookies(!prefs.analytics,!prefs.advertising);\n";
+        echo "function notify(){dispatchEvent(new CustomEvent('jy-metrics-consent-change',{detail:{preferences:{analytics:prefs.analytics,advertising:prefs.advertising},gpc:gpc}}));}function persist(savedAt){try{localStorage.setItem(key,JSON.stringify({analytics:prefs.analytics,advertising:prefs.advertising,savedAt:savedAt===undefined?Date.now():savedAt,policyVersion:2}));localStorage.removeItem(legacyKey);}catch(e){}}\n";
+        echo "var api={preferences:{analytics:prefs.analytics,advertising:prefs.advertising},decided:decided,gpc:gpc};function adoptPreferences(next,write,savedAt){var previous={analytics:prefs.analytics,advertising:prefs.advertising};prefs={analytics:next.analytics===true,advertising:next.advertising===true&&!gpc};decided=true;api.preferences={analytics:prefs.analytics,advertising:prefs.advertising};api.decided=true;if(write)persist(savedAt);applyConsent();var revokedAnalytics=previous.analytics&&!prefs.analytics,revokedAdvertising=previous.advertising&&!prefs.advertising;clearCookies(revokedAnalytics,revokedAdvertising);if((revokedAnalytics&&loaded.analytics)||(revokedAdvertising&&loaded.advertising)){location.reload();return;}loadAllowed();notify();}api.set=function(next){adoptPreferences(next,true);};api.acceptAll=function(){adoptPreferences({analytics:true,advertising:true},true);};api.rejectAll=function(){adoptPreferences({analytics:false,advertising:false},true);};window.jyMetricsConsent=api;\n";
+        echo "addEventListener('storage',function(event){if(event.key!==key||!event.newValue)return;try{var raw=JSON.parse(event.newValue),incoming=normalize(raw);if(!incoming)return;adoptPreferences(incoming,gpc&&raw.advertising===true,incoming.savedAt);}catch(e){}});if(decided&&(prefs.analytics||prefs.advertising)){['pointerdown','touchstart','keydown','scroll'].forEach(function(event){addEventListener(event,loadAllowed,{once:true,passive:true});});function afterLoad(){setTimeout(loadAllowed,5000);}if(document.readyState==='complete')afterLoad();else addEventListener('load',afterLoad,{once:true});}\n";
         echo '})(' . $trackingConfig . ');</script>' . "\n";
     } elseif ($measurementId !== '' || $gtmId !== '') {
         $trackingConfig = json_encode([
@@ -790,22 +757,22 @@ add_action('jy_footer', function (): void {
     }
     if ($consentMode === 'off' || ($gtmId === '' && $adsense === '' && gsk_setting($pdo, GSK_MEASUREMENT_ID_KEY) === '')) return;
 
-    $strict = gsk_consent_is_strict($pdo);
     $privacyUrl = gsk_setting($pdo, GSK_PRIVACY_URL_KEY);
     if (!gsk_valid_privacy_url($privacyUrl)) $privacyUrl = '';
-    $title = $strict ? gsk_t('Privacy choices') : gsk_t('Cookies on this site');
-    $message = $strict
-        ? gsk_t('We use optional analytics and advertising cookies. You can accept or reject them without losing access to the site.')
-        : gsk_t('We use optional analytics and advertising services to understand site usage. They are loaded only after you accept.');
-    echo '<aside class="jym-consent" id="jym-consent" role="region" aria-live="polite" aria-labelledby="jym-consent-title" tabindex="-1" hidden>';
-    echo '<div class="jym-consent__copy"><strong id="jym-consent-title">' . gsk_e($title) . '</strong><p>' . gsk_e($message) . '</p>';
+    echo '<aside class="jym-consent" id="jym-consent" role="region" aria-live="polite" aria-label="' . gsk_e(gsk_t('Privacy choices')) . '" tabindex="-1" hidden>';
+    echo '<button type="button" class="jym-consent__close" data-jym-close aria-label="' . gsk_e(gsk_t('Close and reject optional services')) . '" title="' . gsk_e(gsk_t('Close and reject optional services')) . '">&times;</button>';
+    echo '<div data-jym-summary><div class="jym-consent__copy"><strong id="jym-consent-title">' . gsk_e(gsk_t('Privacy choices')) . '</strong><p>' . gsk_e(gsk_t('We use optional analytics and advertising services. Choose what this site may load.')) . '</p>';
     if ($privacyUrl !== '') echo '<a href="' . gsk_e($privacyUrl) . '">' . gsk_e(gsk_t('Privacy policy')) . '</a>';
-    echo '</div><div class="jym-consent__actions">';
-    echo '<button type="button" class="jym-consent__reject" data-jym-reject' . ($strict ? '' : ' hidden') . '>' . gsk_e(gsk_t('Reject optional')) . '</button>';
-    echo '<button type="button" class="jym-consent__accept" data-jym-accept>' . gsk_e(gsk_t($strict ? 'Accept all' : 'Accept cookies')) . '</button>';
-    echo '</div></aside><button type="button" class="jym-consent-choice" data-jym-open hidden>' . gsk_e(gsk_t('Privacy choices')) . '</button>';
-    echo '<style>.jym-consent{position:fixed;z-index:2147483000;left:1rem;right:1rem;bottom:1rem;display:flex;align-items:center;justify-content:space-between;gap:1.25rem;max-width:920px;margin:auto;padding:1rem 1.1rem;border:1px solid rgba(148,163,184,.35);border-radius:14px;background:#111827;color:#f8fafc;box-shadow:0 18px 50px rgba(15,23,42,.35);font:14px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.jym-consent[hidden],.jym-consent-choice[hidden]{display:none}.jym-consent__copy strong{display:block;margin-bottom:.2rem;font-size:1rem}.jym-consent__copy p{margin:0;color:#cbd5e1}.jym-consent__copy a{display:inline-block;margin-top:.35rem;color:#93c5fd}.jym-consent__actions{display:flex;align-items:center;gap:.6rem;flex:0 0 auto}.jym-consent__actions button,.jym-consent-choice{min-height:40px;padding:.55rem .85rem;border-radius:9px;border:1px solid #64748b;font:600 13px/1 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;cursor:pointer}.jym-consent__reject{background:transparent;color:#f8fafc}.jym-consent__accept{border-color:#2563eb!important;background:#2563eb;color:#fff}.jym-consent-choice{position:fixed;z-index:2147482999;left:1rem;bottom:1rem;background:#111827;color:#fff;box-shadow:0 8px 24px rgba(15,23,42,.25)}@media(max-width:680px){.jym-consent{align-items:stretch;flex-direction:column}.jym-consent__actions{display:grid;grid-template-columns:1fr 1fr}.jym-consent__actions button{width:100%}.jym-consent__reject[hidden]+.jym-consent__accept{grid-column:1/-1}}</style>';
-    echo '<script>(function(){var api=window.jyMetricsConsent,banner=document.getElementById("jym-consent"),open=document.querySelector("[data-jym-open]"),accept=document.querySelector("[data-jym-accept]"),reject=document.querySelector("[data-jym-reject]");if(!api||!banner||!open||!accept)return;function render(show,moveFocus){var decided=api.state==="accepted"||api.state==="rejected";banner.hidden=!show;open.hidden=show||!decided;if(reject)reject.hidden=!api.strict&&!decided;if(moveFocus)(show?(reject&&!reject.hidden?reject:accept):open).focus();}render(!api.state,false);accept.addEventListener("click",function(){api.accept();render(false,true);});if(reject)reject.addEventListener("click",function(){api.reject();render(false,true);});open.addEventListener("click",function(){render(true,true);});})();</script>' . "\n";
+    echo '</div><div class="jym-consent__actions"><button type="button" class="jym-consent__secondary" data-jym-manage>' . gsk_e(gsk_t('Manage choices')) . '</button><button type="button" class="jym-consent__primary" data-jym-accept-all>' . gsk_e(gsk_t('Accept all')) . '</button></div></div>';
+    echo '<div class="jym-consent__details" data-jym-details hidden><strong>' . gsk_e(gsk_t('Manage choices')) . '</strong>';
+    echo '<div class="jym-consent__option"><span><b>' . gsk_e(gsk_t('Necessary')) . '</b><small>' . gsk_e(gsk_t('Required for core site functions and always active.')) . '</small></span><span class="jym-consent__always">' . gsk_e(gsk_t('Always active')) . '</span></div>';
+    echo '<label class="jym-consent__option"><span><b>' . gsk_e(gsk_t('Analytics')) . '</b><small>' . gsk_e(gsk_t('Helps understand site usage through Google Analytics.')) . '</small></span><input type="checkbox" data-jym-analytics><i aria-hidden="true"></i></label>';
+    echo '<label class="jym-consent__option"><span><b>' . gsk_e(gsk_t('Advertising')) . '</b><small>' . gsk_e(gsk_t('Allows Tag Manager, AdSense, and advertising personalization.')) . '</small></span><input type="checkbox" data-jym-advertising><i aria-hidden="true"></i></label>';
+    echo '<p class="jym-consent__notice" data-jym-gpc hidden>' . gsk_e(gsk_t('Global Privacy Control is active. Advertising remains disabled.')) . '</p><p class="jym-consent__note">' . gsk_e(gsk_t('Tag Manager is treated as advertising because its container may run marketing tags.')) . '</p>';
+    echo '<div class="jym-consent__actions"><button type="button" class="jym-consent__secondary" data-jym-reject-all>' . gsk_e(gsk_t('Reject all')) . '</button><button type="button" class="jym-consent__secondary" data-jym-save>' . gsk_e(gsk_t('Save choices')) . '</button><button type="button" class="jym-consent__primary" data-jym-detail-accept>' . gsk_e(gsk_t('Accept all')) . '</button></div></div></aside>';
+    echo '<button type="button" class="jym-consent-choice" data-jym-open hidden>' . gsk_e(gsk_t('Privacy choices')) . '</button>';
+    echo '<style>.jym-consent{position:fixed;z-index:2147483000;left:1rem;right:1rem;bottom:1rem;max-width:920px;box-sizing:border-box;margin:auto;padding:1.1rem 3rem 1.1rem 1.1rem;border:1px solid rgba(148,163,184,.35);border-radius:14px;background:#111827;color:#f8fafc;box-shadow:0 18px 50px rgba(15,23,42,.35);font:14px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.jym-consent[hidden],.jym-consent [hidden],.jym-consent-choice[hidden]{display:none}.jym-consent [data-jym-summary]{display:flex;align-items:center;justify-content:space-between;gap:1.25rem}.jym-consent__copy strong,.jym-consent__details>strong{display:block;margin-bottom:.2rem;font-size:1rem}.jym-consent__copy p{margin:0;color:#cbd5e1}.jym-consent__copy a{display:inline-block;margin-top:.35rem;color:#93c5fd}.jym-consent__close{position:absolute;top:.55rem;right:.65rem;width:34px;height:34px;padding:0;border:0;background:transparent;color:#cbd5e1;font:24px/1 system-ui;cursor:pointer}.jym-consent__actions{display:flex;align-items:center;justify-content:flex-end;gap:.6rem;flex:0 0 auto;margin-top:.8rem}.jym-consent [data-jym-summary] .jym-consent__actions{margin-top:0}.jym-consent__actions button,.jym-consent-choice{min-height:40px;padding:.55rem .85rem;border-radius:9px;border:1px solid #64748b;font:600 13px/1 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;cursor:pointer}.jym-consent__secondary{background:transparent;color:#f8fafc}.jym-consent__primary{border-color:#2563eb!important;background:#2563eb;color:#fff}.jym-consent__details{display:grid;gap:.55rem}.jym-consent__option{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.7rem .8rem;border:1px solid #374151;border-radius:10px;background:#1f2937}.jym-consent__option b,.jym-consent__option small{display:block}.jym-consent__option small{margin-top:.12rem;color:#cbd5e1}.jym-consent__always{color:#86efac;font-size:.78rem;font-weight:700}.jym-consent__option input{position:absolute;opacity:0;pointer-events:none}.jym-consent__option i{position:relative;flex:0 0 42px;width:42px;height:24px;border-radius:999px;background:#64748b;transition:.18s}.jym-consent__option i:after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.18s}.jym-consent__option input:checked+i{background:#2563eb}.jym-consent__option input:checked+i:after{transform:translateX(18px)}.jym-consent__option input:focus-visible+i{outline:3px solid #93c5fd;outline-offset:2px}.jym-consent__option input:disabled+i{opacity:.45;cursor:not-allowed}.jym-consent__notice{margin:.2rem 0 0;padding:.55rem .7rem;border-radius:8px;background:#1e3a5f;color:#bfdbfe}.jym-consent__note{margin:.2rem 0 0;color:#cbd5e1;font-size:.78rem}.jym-consent-choice{position:fixed;z-index:2147482999;left:1rem;bottom:1rem;background:#111827;color:#fff;box-shadow:0 8px 24px rgba(15,23,42,.25)}@media(max-width:680px){.jym-consent [data-jym-summary]{align-items:stretch;flex-direction:column}.jym-consent [data-jym-summary] .jym-consent__actions,.jym-consent__details .jym-consent__actions{display:grid;grid-template-columns:1fr}.jym-consent__actions button{width:100%}}</style>';
+    echo '<script>(function(){var api=window.jyMetricsConsent,banner=document.getElementById("jym-consent"),summary=banner&&banner.querySelector("[data-jym-summary]"),details=banner&&banner.querySelector("[data-jym-details]"),open=document.querySelector("[data-jym-open]"),analytics=banner&&banner.querySelector("[data-jym-analytics]"),advertising=banner&&banner.querySelector("[data-jym-advertising]"),gpc=banner&&banner.querySelector("[data-jym-gpc]");if(!api||!banner||!summary||!details||!open||!analytics||!advertising)return;function sync(){analytics.checked=api.preferences.analytics;advertising.checked=api.preferences.advertising;advertising.disabled=api.gpc;gpc.hidden=!api.gpc;}function showSummary(focus){sync();banner.hidden=false;summary.hidden=false;details.hidden=true;open.hidden=true;if(focus)banner.querySelector("[data-jym-manage]").focus();}function showDetails(focus){sync();banner.hidden=false;summary.hidden=true;details.hidden=false;open.hidden=true;if(focus)analytics.focus();}function hide(){banner.hidden=true;open.hidden=false;open.focus();}if(api.decided){banner.hidden=true;open.hidden=false;}else showSummary(false);banner.querySelector("[data-jym-close]").addEventListener("click",function(){api.rejectAll();hide();});banner.querySelector("[data-jym-manage]").addEventListener("click",function(){showDetails(true);});banner.querySelector("[data-jym-accept-all]").addEventListener("click",function(){api.acceptAll();hide();});banner.querySelector("[data-jym-reject-all]").addEventListener("click",function(){api.rejectAll();hide();});banner.querySelector("[data-jym-save]").addEventListener("click",function(){api.set({analytics:analytics.checked,advertising:advertising.checked});hide();});banner.querySelector("[data-jym-detail-accept]").addEventListener("click",function(){api.acceptAll();hide();});open.addEventListener("click",function(){showDetails(true);});addEventListener("jy-metrics-consent-change",sync);})();</script>' . "\n";
 });
 
 // ── Uninstall cleanup ──

@@ -73,22 +73,27 @@ access to sensitive credentials and OAuth operations.
   Site operators are responsible for consent, disclosure, retention, and other
   compliance requirements that apply to their deployment.
 
-The **Privacy Consent** setting can leave consent handling disabled, show strict
-Accept/Reject choices to every visitor, or use regional behavior. Regional mode
-uses the explicitly selected Cloudflare, CloudFront, or Vercel country header;
-EU, EEA, and UK visitors receive strict choices, while an unknown country fails
-safely to the strict banner. Regional responses are marked private and no-store
-to prevent country-specific choices from leaking through shared page caches.
-Analytics, Tag Manager, and AdSense scripts are not downloaded before
-acceptance. A visitor's choice is stored locally for 180 days and can be
-reopened from the **Privacy choices** button.
+The **Privacy Consent** setting can leave consent handling disabled or show
+global category choices to every visitor. Necessary site functions remain
+active, while Analytics and Advertising start disabled. Google Analytics loads
+only with Analytics consent. Tag Manager and AdSense load only with Advertising
+consent because a Tag Manager container may execute marketing tags.
+
+The first layer offers **Accept all**, **Manage choices**, and a close button.
+Closing rejects all optional services. Visitors can later reopen their choices,
+accept or reject each category, and withdraw consent. Choices are stored locally
+for 180 days. Existing schema-1 Accept/Reject decisions are migrated to the new
+category model without granting additional access.
+
+When the browser exposes Global Privacy Control, Advertising remains disabled
+even if the visitor selects **Accept all**. Jy Metrics maps category choices to
+Google Consent Mode v2 and reloads the page after withdrawing consent from a
+service whose script was already loaded.
 
 Jy Metrics controls only snippets it injects. Site owners must separately audit
-tags inside Tag Manager and scripts added by themes or other plugins. Country
-headers are reliable only when visitors cannot bypass the selected CDN or edge
-provider and the origin strips client-supplied copies of its country header.
-This feature assists consent handling but is not legal advice or a substitute
-for a site-specific privacy review.
+scripts added by themes or other plugins and ensure Tag Manager tags honor the
+consent signals. This feature assists consent handling but is not legal advice
+or a substitute for a site-specific privacy review.
 
 ## Development
 
