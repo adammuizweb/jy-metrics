@@ -22,7 +22,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $consentModeInput = trim((string)($_POST['consent_mode'] ?? 'off'));
         $privacyUrlInput = trim((string)($_POST['privacy_url'] ?? ''));
-        $privacyPageLinkedInput = $privacyUrlInput !== '' && isset($_POST['privacy_page_linked']) ? '1' : '0';
         if (!in_array($consentModeInput, ['off', 'choices'], true)
             || !gsk_valid_privacy_url($privacyUrlInput)) {
             $message = 'Invalid privacy consent settings.';
@@ -38,7 +37,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             gsk_save_setting($pdo, GSK_PAGESPEED_API_KEY, trim((string)($_POST['pagespeed_api_key'] ?? '')));
             gsk_save_setting($pdo, GSK_CONSENT_MODE_KEY, $consentModeInput);
             gsk_save_setting($pdo, GSK_PRIVACY_URL_KEY, $privacyUrlInput);
-            gsk_save_setting($pdo, GSK_PRIVACY_PAGE_LINKED_KEY, $privacyPageLinkedInput);
             $message = 'Settings saved.';
             $messageType = 'success';
         }
@@ -60,7 +58,6 @@ $adsense = $settings[GSK_ADSENSE_CLIENT_KEY] ?? '';
 $verification = $settings[GSK_SITE_VERIFICATION_KEY] ?? '';
 $consentMode = gsk_consent_mode($pdo);
 $privacyUrl = $settings[GSK_PRIVACY_URL_KEY] ?? '';
-$privacyPageLinked = ($settings[GSK_PRIVACY_PAGE_LINKED_KEY] ?? '') === '1';
 $consentLabels = ['off' => 'Disabled', 'choices' => 'Global privacy choices'];
 $hasClientId = ($settings[GSK_CLIENT_ID_KEY] ?? '') !== '';
 $hasClientSecret = ($settings[GSK_CLIENT_SECRET_KEY] ?? '') !== '';
@@ -188,12 +185,11 @@ function gskSettingsHelp(string $id, string $description): string {
         </div>
         <div class="gsk-field-row">
           <div class="gsk-field">
-            <div class="gsk-field-label-row"><label class="gsk-field__label" for="gsk-privacy-url">Privacy policy URL</label><?= gskSettingsHelp('gsk-privacy-url-help', 'For a confirmed same-site page, the floating Privacy choices button disappears from normal pages after consent and remains available on that policy page. Empty, external, or unconfirmed URLs keep the floating fallback everywhere.') ?></div>
+            <div class="gsk-field-label-row"><label class="gsk-field__label" for="gsk-privacy-url">Privacy policy URL</label><?= gskSettingsHelp('gsk-privacy-url-help', 'For a same-site page, the floating Privacy choices button disappears from normal pages after consent and remains available on that policy page. Empty or external URLs keep the floating fallback everywhere.') ?></div>
             <input type="text" id="gsk-privacy-url" name="privacy_url" class="inpud" value="<?= gsk_e($privacyUrl) ?>" placeholder="/privacy-policy/">
-            <span class="gsk-field__hint">Use a same-site page linked from the footer to keep the reopen control only on that page. Empty or external URLs retain the floating fallback everywhere so visitors can still withdraw consent.</span>
+            <span class="gsk-field__hint">Use a same-site page to keep the reopen control only on that page after a visitor decides. Empty or external URLs retain the floating fallback everywhere so visitors can still withdraw consent.</span>
           </div>
         </div>
-        <div class="gsk-confirm-row"><label class="gsk-confirm"><input type="checkbox" name="privacy_page_linked" value="1" <?= $privacyPageLinked ? 'checked' : '' ?>><span><strong>I confirm this same-site privacy page exists and is linked from the site footer.</strong><small>Only after this confirmation will Jy Metrics hide the floating control from normal pages. Query strings and fragments in the configured URL are matched when present.</small></span></label><?= gskSettingsHelp('gsk-privacy-linked-help', 'This confirmation prevents a mistyped or undiscoverable page from removing the only consent-withdrawal control. Leave it unchecked until the page and footer link are both live.') ?></div>
         <p class="gsk-meta"><strong>Important:</strong> Tag Manager is treated as Advertising because a container can run arbitrary marketing tags. Jy Metrics controls only snippets injected by this plugin; review scripts added by themes or other plugins separately.</p>
       </div>
     </div>

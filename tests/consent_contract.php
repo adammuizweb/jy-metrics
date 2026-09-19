@@ -38,7 +38,7 @@ $settingsSource = (string)file_get_contents(dirname(__DIR__) . '/admin/settings.
 
 $check(gsk_valid_privacy_url('') && gsk_valid_privacy_url('/privacy/') && gsk_valid_privacy_url('https://example.com/privacy'), 'safe privacy URLs are accepted');
 $check(!gsk_valid_privacy_url('//example.com') && !gsk_valid_privacy_url('/\\example.com') && !gsk_valid_privacy_url('javascript:alert(1)') && !gsk_valid_privacy_url('/bad path'), 'ambiguous and executable privacy URLs are rejected');
-$check(str_contains($settingsSource, "name=\"privacy_page_linked\"") && str_contains($settingsSource, 'GSK_PRIVACY_PAGE_LINKED_KEY'), 'settings require explicit confirmation before scoping withdrawal to a policy page');
+$check(!str_contains($settingsSource, 'privacy_page_linked') && !str_contains($settingsSource, 'site footer'), 'privacy settings remain tenant-neutral without a footer-specific confirmation');
 $check(str_contains($settingsSource, 'aria-describedby=') && str_contains($settingsSource, 'role="tooltip"') && str_contains($settingsSource, ':focus-within .gsk-help-tip'), 'settings architecture help is keyboard and assistive-technology accessible');
 
 $GLOBALS['contract_settings'] = [GSK_CONSENT_MODE_KEY => 'choices'];
@@ -56,14 +56,18 @@ $GLOBALS['contract_settings'] = [
     GSK_ADSENSE_CLIENT_KEY => 'ca-pub-123',
     GSK_CONSENT_MODE_KEY => 'choices',
     GSK_PRIVACY_URL_KEY => '/privacy/',
-    GSK_PRIVACY_PAGE_LINKED_KEY => '1',
 ];
 $head = $render('jy_head');
 $footer = $render('jy_footer');
 $check(str_contains($head, "gtag('consent','default',denied)") && str_contains($head, "key='jy_metrics_consent_v2'") && str_contains($head, "legacyKey='jy_metrics_consent_v1'"), 'category consent defaults optional storage to denied and migrates schema 1');
 $check(str_contains($head, 'navigator.globalPrivacyControl===true') && str_contains($head, "advertising:next.advertising===true&&!gpc"), 'Global Privacy Control cannot be overridden by an advertising choice');
 $check(str_contains($head, 'if(prefs.analytics&&!loaded.analytics)') && str_contains($head, 'if(prefs.advertising&&!loaded.advertising)'), 'Analytics and Advertising load through separate category gates');
-$check(str_contains($head, '"privacyUrl":"/privacy/"') && str_contains($head, '"privacyPageLinked":true') && str_contains($head, 'c.privacyPageLinked&&c.privacyUrl') && str_contains($head, 'reopenOnCurrentPage:!localPrivacyPage||onPrivacyPage'), 'confirmed same-site privacy pages scope the persistent reopen control with a global fallback');
+$check(str_contains($head, '"privacyUrl":"/privacy/"') && !str_contains($head, 'privacyPageLinked') && str_contains($head, 'if(c.privacyUrl)') && str_contains($head, 'reopenOnCurrentPage:!localPrivacyPage||onPrivacyPage'), 'same-site privacy URLs scope the persistent reopen control without tenant-specific confirmation');
+$GLOBALS['contract_settings'][GSK_PRIVACY_URL_KEY] = '//example.com/privacy';
+$invalidPrivacyHead = $render('jy_head');
+$GLOBALS['contract_settings'][GSK_PRIVACY_URL_KEY] = '/privacy/';
+$check(str_contains($invalidPrivacyHead, '"privacyUrl":""'), 'invalid persisted privacy URLs retain the global withdrawal fallback');
+$check(str_contains($head, 'localPrivacyPage=privacyTarget.origin===location.origin'), 'external privacy URLs retain the global withdrawal fallback');
 $check(str_contains($head, 'sameQuery=!privacyTarget.search||privacyTarget.search===location.search') && str_contains($head, 'sameHash=!privacyTarget.hash||privacyTarget.hash===location.hash'), 'configured query strings and fragments participate in policy-page matching');
 $check(str_contains($head, "addEventListener('storage'") && str_contains($head, 'adoptPreferences(incoming'), 'preference changes synchronize across open tabs');
 $check(str_contains($head, 'Number.isFinite(savedAt)') && str_contains($head, 'savedAt<=now+300000'), 'stored consent requires a bounded finite timestamp');
@@ -73,6 +77,7 @@ $check(str_contains($head, "name==='_ga'||name.indexOf('_ga_')===0") && str_cont
 $check(!str_contains($footer, '<script async src=') && !str_contains($footer, '<noscript>') && str_contains($footer, 'data-jym-manage') && str_contains($footer, 'data-jym-close'), 'category mode renders Accept, Manage, and rejecting close controls without eager external tags');
 $check(str_contains($footer, 'data-jym-analytics') && str_contains($footer, 'data-jym-advertising') && str_contains($footer, 'data-jym-reject-all'), 'preference panel exposes category controls and Reject all');
 $check(str_contains($footer, 'open.hidden=!api.reopenOnCurrentPage'), 'footer behavior hides the floating reopen control away from a configured local policy page');
+$check(str_contains($footer, 'restoreFocus=banner.contains(document.activeElement)') && str_contains($footer, 'target.focus({preventScroll:true})'), 'a decision synchronized from another tab dismisses the initial prompt without stranding keyboard focus');
 $check(str_contains($footer, 'document.querySelector("main")||document.body'), 'hidden banner actions return keyboard focus to visible page content');
 $check(str_contains($footer, 'role="region"') && str_contains($footer, 'Privacy policy'), 'consent UI exposes accessible semantics and the configured policy link');
 
