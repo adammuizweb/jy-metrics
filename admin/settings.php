@@ -21,12 +21,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $messageType = 'error';
     } else {
         $consentModeInput = trim((string)($_POST['consent_mode'] ?? 'off'));
+        $savedConsentCategories = gsk_consent_categories($pdo);
+        $consentCategoriesPresent = (string)($_POST['consent_categories_present'] ?? '') === '1';
+        $consentAnalyticsInput = $consentCategoriesPresent
+            ? (isset($_POST['consent_analytics']) ? '1' : '0')
+            : ($savedConsentCategories['analytics'] ? '1' : '0');
+        $consentAdvertisingInput = $consentCategoriesPresent
+            ? (isset($_POST['consent_advertising']) ? '1' : '0')
+            : ($savedConsentCategories['advertising'] ? '1' : '0');
         $privacyUrlInput = trim((string)($_POST['privacy_url'] ?? ''));
         if (!in_array($consentModeInput, ['off', 'choices'], true)
             || !gsk_valid_privacy_url($privacyUrlInput)) {
             $message = 'Invalid privacy consent settings.';
             $messageType = 'error';
         } else {
+            $submittedConsentCategories = [
+                'analytics' => $consentAnalyticsInput === '1',
+                'advertising' => $consentAdvertisingInput === '1',
+            ];
             gsk_save_setting($pdo, GSK_CLIENT_ID_KEY, trim((string)($_POST['client_id'] ?? '')));
             gsk_save_setting($pdo, GSK_CLIENT_SECRET_KEY, trim((string)($_POST['client_secret'] ?? '')));
             gsk_save_setting($pdo, GSK_GA4_PROPERTY_ID_KEY, trim((string)($_POST['ga4_property_id'] ?? '')));
@@ -36,6 +48,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             gsk_save_setting($pdo, GSK_SITE_VERIFICATION_KEY, trim((string)($_POST['site_verification'] ?? '')));
             gsk_save_setting($pdo, GSK_PAGESPEED_API_KEY, trim((string)($_POST['pagespeed_api_key'] ?? '')));
             gsk_save_setting($pdo, GSK_CONSENT_MODE_KEY, $consentModeInput);
+            gsk_save_setting($pdo, GSK_CONSENT_ANALYTICS_KEY, $consentAnalyticsInput);
+            gsk_save_setting($pdo, GSK_CONSENT_ADVERTISING_KEY, $consentAdvertisingInput);
+            if ($submittedConsentCategories !== $savedConsentCategories) {
+                gsk_save_setting($pdo, GSK_CONSENT_POLICY_KEY, hash('sha256', random_bytes(32)));
+            }
             gsk_save_setting($pdo, GSK_PRIVACY_URL_KEY, $privacyUrlInput);
             $message = 'Settings saved.';
             $messageType = 'success';
@@ -57,6 +74,13 @@ $gtmId = $settings[GSK_GTM_ID_KEY] ?? '';
 $adsense = $settings[GSK_ADSENSE_CLIENT_KEY] ?? '';
 $verification = $settings[GSK_SITE_VERIFICATION_KEY] ?? '';
 $consentMode = gsk_consent_mode($pdo);
+$consentCategories = gsk_consent_categories($pdo);
+if (isset($consentAnalyticsInput, $consentAdvertisingInput)) {
+    $consentCategories = [
+        'analytics' => $consentAnalyticsInput === '1',
+        'advertising' => $consentAdvertisingInput === '1',
+    ];
+}
 $privacyUrl = $settings[GSK_PRIVACY_URL_KEY] ?? '';
 $consentLabels = ['off' => 'Disabled', 'choices' => 'Global privacy choices'];
 $hasClientId = ($settings[GSK_CLIENT_ID_KEY] ?? '') !== '';
@@ -143,6 +167,7 @@ function gskSettingsHelp(string $id, string $description): string {
 
   <form method="post" action="<?= gsk_e(gsk_page_url('settings')) ?>" class="gsk-form">
     <input type="hidden" name="csrf_token" value="<?= gsk_e($csrf) ?>">
+    <input type="hidden" name="consent_categories_present" value="1">
 
     <div class="gsk-card gsk-card--collapsible" id="gsk-oauth-credentials" data-gsk-card>
         <button type="button" class="gsk-card__head gsk-card__toggle" aria-expanded="<?= $hasOAuthCredentials ? 'false' : 'true' ?>"><span class="gsk-card__title">OAuth credentials <span class="gsk-help" title="Private credentials from the Google Cloud project created for this site.">?</span></span><span class="gsk-card__summary"><?= $hasClientId ? 'Client ID ready' : 'Client ID missing' ?> · <?= $hasClientSecret ? 'secret ready' : 'secret missing' ?></span></button>
@@ -182,6 +207,15 @@ function gskSettingsHelp(string $id, string $description): string {
             </select>
             <span class="gsk-field__hint">The close button rejects optional services. Global Privacy Control is honored by keeping Advertising disabled.</span>
           </div>
+        </div>
+        <div class="gsk-field">
+          <div class="gsk-field-label-row"><span class="gsk-field__label">Cookie categories</span><?= gskSettingsHelp('gsk-consent-categories-help', 'Necessary is always active. Disable an optional category when this site does not use services in that category.') ?></div>
+          <div class="gsk-confirm-row">
+            <label class="gsk-confirm"><input type="checkbox" checked disabled><span><strong>Necessary</strong><small>Always active for core site functions.</small></span></label>
+            <label class="gsk-confirm"><input type="checkbox" name="consent_analytics" value="1" <?= $consentCategories['analytics'] ? 'checked' : '' ?>><span><strong>Analytics</strong><small>Show this choice and allow Google Analytics after consent.</small></span></label>
+            <label class="gsk-confirm"><input type="checkbox" name="consent_advertising" value="1" <?= $consentCategories['advertising'] ? 'checked' : '' ?>><span><strong>Advertising</strong><small>Show this choice and allow Tag Manager or AdSense after consent.</small></span></label>
+          </div>
+          <span class="gsk-field__hint">If both optional categories are disabled, Jy Metrics does not show a consent banner or load optional Google snippets.</span>
         </div>
         <div class="gsk-field-row">
           <div class="gsk-field">

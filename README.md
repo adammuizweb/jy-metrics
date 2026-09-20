@@ -79,6 +79,12 @@ active, while Analytics and Advertising start disabled. Google Analytics loads
 only with Analytics consent. Tag Manager and AdSense load only with Advertising
 consent because a Tag Manager container may execute marketing tags.
 
+Site administrators can hide Analytics or Advertising from **Privacy Consent**
+settings when the site does not use that category. Necessary remains visible and
+always active. A hidden category stays denied, is excluded from **Accept all**,
+and its Jy Metrics snippets are not loaded. If both optional categories are
+hidden, the consent banner is not shown.
+
 The first layer offers **Accept all**, **Manage choices**, and a close button.
 Closing rejects all optional services. Visitors can later reopen their choices,
 accept or reject each category, and withdraw consent. Choices are stored locally

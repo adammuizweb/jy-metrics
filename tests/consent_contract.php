@@ -40,6 +40,16 @@ $check(gsk_valid_privacy_url('') && gsk_valid_privacy_url('/privacy/') && gsk_va
 $check(!gsk_valid_privacy_url('//example.com') && !gsk_valid_privacy_url('/\\example.com') && !gsk_valid_privacy_url('javascript:alert(1)') && !gsk_valid_privacy_url('/bad path'), 'ambiguous and executable privacy URLs are rejected');
 $check(!str_contains($settingsSource, 'privacy_page_linked') && !str_contains($settingsSource, 'site footer'), 'privacy settings remain tenant-neutral without a footer-specific confirmation');
 $check(str_contains($settingsSource, 'aria-describedby=') && str_contains($settingsSource, 'role="tooltip"') && str_contains($settingsSource, ':focus-within .gsk-help-tip'), 'settings architecture help is keyboard and assistive-technology accessible');
+$check(str_contains($settingsSource, 'name="consent_analytics"') && str_contains($settingsSource, 'name="consent_advertising"'), 'settings expose separate Analytics and Advertising visibility controls');
+$check(str_contains($settingsSource, 'name="consent_categories_present"') && str_contains($settingsSource, '$consentCategoriesPresent'), 'older settings forms preserve category visibility when new controls are absent');
+
+$GLOBALS['contract_settings'] = [];
+$check(gsk_consent_categories($pdo) === ['analytics' => true, 'advertising' => true], 'existing installations keep both optional categories visible by default');
+$GLOBALS['contract_settings'] = [GSK_CONSENT_ANALYTICS_KEY => '0', GSK_CONSENT_ADVERTISING_KEY => '1'];
+$check(gsk_consent_categories($pdo) === ['analytics' => false, 'advertising' => true], 'stored category visibility is normalized to booleans');
+$check(gsk_consent_category_policy($pdo) === 'legacy', 'missing category policy preserves existing consent during a compatible upgrade');
+$GLOBALS['contract_settings'][GSK_CONSENT_POLICY_KEY] = str_repeat('a', 64);
+$check(gsk_consent_category_policy($pdo) === str_repeat('a', 64), 'valid category policy revisions are accepted');
 
 $GLOBALS['contract_settings'] = [GSK_CONSENT_MODE_KEY => 'choices'];
 $check(gsk_consent_mode($pdo) === 'choices', 'global category consent mode is accepted');
@@ -60,8 +70,10 @@ $GLOBALS['contract_settings'] = [
 $head = $render('jy_head');
 $footer = $render('jy_footer');
 $check(str_contains($head, "gtag('consent','default',denied)") && str_contains($head, "key='jy_metrics_consent_v2'") && str_contains($head, "legacyKey='jy_metrics_consent_v1'"), 'category consent defaults optional storage to denied and migrates schema 1');
-$check(str_contains($head, 'navigator.globalPrivacyControl===true') && str_contains($head, "advertising:next.advertising===true&&!gpc"), 'Global Privacy Control cannot be overridden by an advertising choice');
+$check(str_contains($head, 'navigator.globalPrivacyControl===true') && str_contains($head, "advertising:c.categories.advertising&&next.advertising===true&&!gpc"), 'Global Privacy Control and disabled categories cannot be overridden by a choice');
 $check(str_contains($head, 'if(prefs.analytics&&!loaded.analytics)') && str_contains($head, 'if(prefs.advertising&&!loaded.advertising)'), 'Analytics and Advertising load through separate category gates');
+$check(str_contains($head, 'api.acceptAll=function(){adoptPreferences({analytics:c.categories.analytics,advertising:c.categories.advertising}'), 'Accept all grants only categories enabled by the site administrator');
+$check(str_contains($head, 'value.categoryPolicy!==c.categoryPolicy') && str_contains($head, 'categoryPolicy:c.categoryPolicy'), 'category changes invalidate prior browser consent instead of reviving hidden permissions');
 $check(str_contains($head, '"privacyUrl":"/privacy/"') && !str_contains($head, 'privacyPageLinked') && str_contains($head, 'if(c.privacyUrl)') && str_contains($head, 'reopenOnCurrentPage:!localPrivacyPage||onPrivacyPage'), 'same-site privacy URLs scope the persistent reopen control without tenant-specific confirmation');
 $GLOBALS['contract_settings'][GSK_PRIVACY_URL_KEY] = '//example.com/privacy';
 $invalidPrivacyHead = $render('jy_head');
@@ -76,16 +88,37 @@ $check(str_contains($head, 'clearCookies(!prefs.analytics,!prefs.advertising)'),
 $check(str_contains($head, "name==='_ga'||name.indexOf('_ga_')===0") && str_contains($head, "name.indexOf('_gac')===0") && str_contains($head, "name.indexOf('__eoi')===0"), 'withdrawal separates known browser-readable analytics and advertising identifiers');
 $check(!str_contains($footer, '<script async src=') && !str_contains($footer, '<noscript>') && str_contains($footer, 'data-jym-manage') && str_contains($footer, 'data-jym-close'), 'category mode renders Accept, Manage, and rejecting close controls without eager external tags');
 $check(str_contains($footer, 'data-jym-analytics') && str_contains($footer, 'data-jym-advertising') && str_contains($footer, 'data-jym-reject-all'), 'preference panel exposes category controls and Reject all');
+$check(str_contains($footer, 'advertising&&!advertising.disabled?advertising:null'), 'Advertising-only panels skip the disabled GPC control when moving keyboard focus');
 $check(str_contains($footer, 'open.hidden=!api.reopenOnCurrentPage'), 'footer behavior hides the floating reopen control away from a configured local policy page');
 $check(str_contains($footer, 'restoreFocus=banner.contains(document.activeElement)') && str_contains($footer, 'target.focus({preventScroll:true})'), 'a decision synchronized from another tab dismisses the initial prompt without stranding keyboard focus');
 $check(str_contains($footer, 'document.querySelector("main")||document.body'), 'hidden banner actions return keyboard focus to visible page content');
 $check(str_contains($footer, 'role="region"') && str_contains($footer, 'Privacy policy'), 'consent UI exposes accessible semantics and the configured policy link');
 
+$GLOBALS['contract_settings'][GSK_CONSENT_ADVERTISING_KEY] = '0';
+$head = $render('jy_head');
+$footer = $render('jy_footer');
+$check(str_contains($head, '"categories":{"analytics":true,"advertising":false}') && !str_contains($head, 'GTM-TEST') && !str_contains($head, 'ca-pub-123'), 'disabled Advertising stays denied and its configured snippets are removed from runtime configuration');
+$check(str_contains($footer, '<input type="checkbox" data-jym-analytics>') && !str_contains($footer, '<input type="checkbox" data-jym-advertising>') && str_contains($footer, 'We use optional analytics services.'), 'disabled Advertising is absent from the visitor interface and summary');
+
+$GLOBALS['contract_settings'][GSK_CONSENT_ANALYTICS_KEY] = '0';
+$head = $render('jy_head');
+$footer = $render('jy_footer');
+$check(!str_contains($head, 'jy_metrics_consent_v2') && !str_contains($footer, 'id="jym-consent"'), 'disabling both optional categories suppresses the consent runtime and banner');
+
+$GLOBALS['contract_settings'][GSK_CONSENT_ANALYTICS_KEY] = '1';
+$GLOBALS['contract_settings'][GSK_CONSENT_ADVERTISING_KEY] = '1';
 $GLOBALS['contract_settings'][GSK_MEASUREMENT_ID_KEY] = '</script><script>alert(1)</script>';
 $head = $render('jy_head');
 $check(!str_contains($head, '</script><script>alert(1)</script>') && str_contains($head, '\\u003C/script\\u003E'), 'inline tracking configuration hex-escapes markup');
 
+$GLOBALS['contract_settings'][GSK_MEASUREMENT_ID_KEY] = 'G-TEST';
+$GLOBALS['contract_settings'][GSK_CONSENT_ADVERTISING_KEY] = '0';
 $GLOBALS['contract_settings'][GSK_CONSENT_MODE_KEY] = 'off';
+$head = $render('jy_head');
+$footer = $render('jy_footer');
+$check(str_contains($head, 'G-TEST') && !str_contains($head, 'GTM-TEST') && !str_contains($footer, 'ca-pub-123'), 'category disabling also blocks matching snippets when consent behavior is off');
+
+$GLOBALS['contract_settings'][GSK_CONSENT_ADVERTISING_KEY] = '1';
 $head = $render('jy_head');
 $footer = $render('jy_footer');
 $check(!str_contains($footer, 'id="jym-consent"') && str_contains($footer, '<noscript>') && str_contains($footer, '<script async src='), 'disabled mode preserves legacy snippet behavior without consent UI');
