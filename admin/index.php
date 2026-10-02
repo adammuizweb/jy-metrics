@@ -153,9 +153,29 @@ if (!empty($_GET['success'])) {
   </div>
 
   <div class="gsk-grid">
-    <div class="gsk-card" data-gsk-lazy="channels">
-      <div class="gsk-card__head"><h2 class="gsk-card__title"><?= gsk_e(gsk_t('Channels')) ?><?= gsk_help_tooltip('gsk-help-channels', gsk_t('Channels'), gsk_t('Sessions grouped by GA4 default traffic source categories, such as Organic Search or Direct.')) ?></h2></div>
-      <div class="gsk-card__body"><div id="gsk-channels" class="gsk-chart-table"><p class="gsk-loading"><span class="gsk-spinner"></span> Loading…</p></div></div>
+    <div class="gsk-card" data-gsk-lazy="breakdown">
+      <div class="gsk-card__head"><h2 class="gsk-card__title"><?= gsk_e(gsk_t('Traffic breakdown')) ?><?= gsk_help_tooltip('gsk-help-traffic-breakdown', gsk_t('Traffic breakdown'), gsk_t('Compare sessions by acquisition channel, device category, or mobile and tablet device brand.')) ?></h2></div>
+      <div class="gsk-card__body">
+        <div class="gsk-breakdown-tabs" role="tablist" aria-label="<?= gsk_e(gsk_t('Traffic breakdown')) ?>">
+          <button type="button" class="gsk-breakdown-tab active" id="gsk-breakdown-tab-channel" data-breakdown-dimension="channel" role="tab" aria-selected="true" aria-controls="gsk-breakdown-panel-channel" tabindex="0"><?= gsk_e(gsk_t('Channels')) ?></button>
+          <button type="button" class="gsk-breakdown-tab" id="gsk-breakdown-tab-device" data-breakdown-dimension="device" role="tab" aria-selected="false" aria-controls="gsk-breakdown-panel-device" tabindex="-1"><?= gsk_e(gsk_t('Devices')) ?></button>
+          <button type="button" class="gsk-breakdown-tab" id="gsk-breakdown-tab-brand" data-breakdown-dimension="brand" role="tab" aria-selected="false" aria-controls="gsk-breakdown-panel-brand" tabindex="-1"><?= gsk_e(gsk_t('Brands')) ?></button>
+        </div>
+        <div class="gsk-breakdown-panels">
+          <div class="gsk-breakdown-panel" id="gsk-breakdown-panel-channel" role="tabpanel" aria-labelledby="gsk-breakdown-tab-channel">
+            <div class="gsk-breakdown-summary"><span><?= gsk_e(gsk_t('Sessions grouped by GA4 default traffic source categories.')) ?></span><span class="gsk-breakdown-total"><strong id="gsk-breakdown-total-channel">—</strong> <?= gsk_e(gsk_t('Sessions')) ?></span></div>
+            <div id="gsk-breakdown-channel" class="gsk-chart-table" aria-live="polite"><p class="gsk-loading"><span class="gsk-spinner"></span> <?= gsk_e(gsk_t('Loading…')) ?></p></div>
+          </div>
+          <div class="gsk-breakdown-panel" id="gsk-breakdown-panel-device" role="tabpanel" aria-labelledby="gsk-breakdown-tab-device" hidden>
+            <div class="gsk-breakdown-summary"><span><?= gsk_e(gsk_t('Sessions grouped by device category.')) ?></span><span class="gsk-breakdown-total"><strong id="gsk-breakdown-total-device">—</strong> <?= gsk_e(gsk_t('Sessions')) ?></span></div>
+            <div id="gsk-breakdown-device" class="gsk-chart-table" aria-live="polite"></div>
+          </div>
+          <div class="gsk-breakdown-panel" id="gsk-breakdown-panel-brand" role="tabpanel" aria-labelledby="gsk-breakdown-tab-brand" hidden>
+            <div class="gsk-breakdown-summary"><span><?= gsk_e(gsk_t('Mobile and tablet sessions grouped by device brand.')) ?></span><span class="gsk-breakdown-total"><strong id="gsk-breakdown-total-brand">—</strong> <?= gsk_e(gsk_t('Sessions')) ?></span></div>
+            <div id="gsk-breakdown-brand" class="gsk-chart-table" aria-live="polite"></div>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="gsk-card" data-gsk-lazy="locations">
       <div class="gsk-card__head"><h2 class="gsk-card__title"><?= gsk_e(gsk_t('Locations')) ?><?= gsk_help_tooltip('gsk-help-locations', gsk_t('Locations'), gsk_t('Active users by country, province, or city during the selected period.')) ?></h2></div>
@@ -340,6 +360,30 @@ html.theme-dark .gsk-bar-track { background: #0a111a; }
 .gsk-location-filters[hidden], .gsk-location-filter[hidden] { display: none !important; }
 .gsk-location-filter select { max-width: 220px; padding: .35rem .5rem; border: 1px solid var(--adam-border-2); border-radius: 6px; background: var(--adam-surface-3); color: var(--adam-text); font: inherit; }
 .gsk-location-filter select:disabled { cursor: not-allowed; opacity: .6; }
+.gsk-breakdown-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .25rem; margin-bottom: 1rem; padding: .25rem; border: 1px solid var(--adam-border); border-radius: 10px; background: var(--adam-surface-3); }
+.gsk-breakdown-tab { min-width: 0; padding: .5rem .35rem; border: 0; border-radius: 7px; background: transparent; color: var(--adam-muted); font: inherit; font-size: .8rem; font-weight: 600; cursor: pointer; }
+.gsk-breakdown-tab:hover { color: var(--adam-primary); }
+.gsk-breakdown-tab.active { background: var(--adam-card); color: var(--adam-primary); box-shadow: 0 2px 8px rgba(15,23,42,.1); }
+.gsk-breakdown-tab:focus-visible { outline: 2px solid var(--adam-focus); outline-offset: 2px; }
+.gsk-breakdown-panel[hidden] { display: none; }
+.gsk-breakdown-panels { min-height: 260px; }
+.gsk-breakdown-summary { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; min-height: 2.25rem; margin-bottom: 1rem; color: var(--adam-muted); font-size: .76rem; line-height: 1.4; }
+.gsk-breakdown-summary > span:first-child { max-width: 65%; }
+.gsk-breakdown-total { flex: 0 0 auto; color: var(--adam-muted); text-align: right; white-space: nowrap; }
+.gsk-breakdown-total strong { display: block; color: var(--adam-text); font-size: 1.1rem; line-height: 1.1; }
+.gsk-breakdown-value { display: flex; width: 78px; flex-direction: column; align-items: flex-end; line-height: 1.15; }
+.gsk-breakdown-value strong { color: var(--adam-text); font-size: .82rem; }
+.gsk-breakdown-value small { margin-top: .12rem; color: var(--adam-muted); font-size: .68rem; }
+.gsk-breakdown-paginator { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-top: .85rem; padding-top: .75rem; border-top: 1px solid var(--adam-border); color: var(--adam-muted); font-size: .75rem; }
+.gsk-breakdown-paginator__buttons { display: flex; gap: .35rem; }
+.gsk-breakdown-paginator button { padding: .3rem .55rem; }
+.gsk-breakdown-paginator button:disabled { cursor: not-allowed; opacity: .5; }
+@media (max-width: 420px) {
+  .gsk-breakdown-summary { display: block; }
+  .gsk-breakdown-summary > span:first-child { display: block; max-width: none; }
+  .gsk-breakdown-total { display: block; margin-top: .5rem; text-align: left; }
+  .gsk-breakdown-total strong { display: inline; margin-right: .2rem; }
+}
 .gsk-live-dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; animation: gsk-pulse 1.5s infinite; }
 @keyframes gsk-pulse { 0% { opacity: 1; } 50% { opacity: .4; } 100% { opacity: 1; } }
 </style>
@@ -354,9 +398,18 @@ html.theme-dark .gsk-bar-track { background: #0a111a; }
   var unknownLocationLabel = <?= json_encode(gsk_t('Unknown location')) ?>;
   var unknownLocationDescription = <?= json_encode(gsk_t('Google Analytics could not determine this visitor location. It may occur when location data is unavailable, consent limits data collection, or the visit lacks a usable IP address.')) ?>;
   var scDataDelayTemplate = <?= json_encode(gsk_t('Search Console data is usually available 2-3 days later. Latest available: {date}.')) ?>;
+  var breakdownText = {
+    noData: <?= json_encode(gsk_t('No data')) ?>,
+    loadError: <?= json_encode(gsk_t('Could not load traffic breakdown')) ?>,
+    loading: <?= json_encode(gsk_t('Loading…')) ?>,
+    previous: <?= json_encode(gsk_t('Previous')) ?>,
+    next: <?= json_encode(gsk_t('Next')) ?>,
+    showing: <?= json_encode(gsk_t('Showing {start}-{end} of {total}')) ?>
+  };
   var connected = <?= json_encode($connected) ?>;
   var currentDays = '30';
   var currentLocationDimension = 'country';
+  var currentBreakdownDimension = 'channel';
   var currentGeneration = 0;
   var requestCache = {};
   var requestVersions = {};
@@ -373,6 +426,10 @@ html.theme-dark .gsk-bar-track { background: #0a111a; }
     var div = document.createElement('div');
     div.textContent = str || '';
     return div.innerHTML;
+  }
+
+  function gskEscapeAttribute(str){
+    return gskEscape(str).replace(/"/g, '&quot;').replace(/'/g, '&#039;');
   }
 
   function gskNumber(n){
@@ -729,13 +786,90 @@ html.theme-dark .gsk-bar-track { background: #0a111a; }
     });
   }
 
-  function gskLoadChannels(days, generation, force){
-    var d = '&days=' + encodeURIComponent(days);
-    gskFetch(gaEndpoint + '&action=channels' + d + '&csrf_token=' + encodeURIComponent(csrf), force).then(function(j){
-      if (j.stale || !gskIsCurrent(days, generation)) return;
-      if (j.ok && j.channels) gskRenderBarTable('gsk-channels', j.channels, 'channel', 'sessions');
-      else document.getElementById('gsk-channels').innerHTML = '<p class="gsk-meta">' + gskEscape(j.error || 'Could not load channels') + '</p>';
+  var breakdownData = {};
+  var breakdownLoaded = {};
+  var breakdownPages = { brand: 1 };
+
+  function gskRenderBreakdown(dimension){
+    var data = breakdownData[dimension] || { rows: [], total: 0 };
+    var container = document.getElementById('gsk-breakdown-' + dimension);
+    var total = document.getElementById('gsk-breakdown-total-' + dimension);
+    if (!container || !total) return;
+    total.textContent = gskNumber(data.total);
+    if (!data.rows.length) {
+      container.innerHTML = '<p class="gsk-meta">' + gskEscape(breakdownText.noData) + '</p>';
+      return;
+    }
+
+    var pageSize = 7;
+    var page = dimension === 'brand' ? Math.max(1, breakdownPages.brand || 1) : 1;
+    var totalPages = dimension === 'brand' ? Math.max(1, Math.ceil(data.rows.length / pageSize)) : 1;
+    page = Math.min(page, totalPages);
+    if (dimension === 'brand') breakdownPages.brand = page;
+    var start = dimension === 'brand' ? (page - 1) * pageSize : 0;
+    var rows = dimension === 'brand' ? data.rows.slice(start, start + pageSize) : data.rows;
+    var html = '';
+    rows.forEach(function(row){
+      var share = data.total ? (Number(row.sessions || 0) / data.total) * 100 : 0;
+      var percent = share.toLocaleString(undefined, { maximumFractionDigits: 1 }) + '%';
+      html += '<div class="gsk-bar-row">' +
+        '<span class="gsk-bar-label" title="' + gskEscapeAttribute(row.label) + '">' + gskEscape(row.label) + '</span>' +
+        '<div class="gsk-bar-track"><div class="gsk-bar-fill" style="width:' + Math.max(0, Math.min(100, share)) + '%"></div></div>' +
+        '<span class="gsk-breakdown-value"><strong>' + gskNumber(row.sessions) + '</strong><small>' + gskEscape(percent) + '</small></span></div>';
     });
+    if (dimension === 'brand' && data.rows.length > pageSize) {
+      var end = Math.min(start + pageSize, data.rows.length);
+      var range = breakdownText.showing.replace('{start}', String(start + 1)).replace('{end}', String(end)).replace('{total}', String(data.rows.length));
+      html += '<div class="gsk-breakdown-paginator"><span>' + gskEscape(range) + '</span><span class="gsk-breakdown-paginator__buttons">' +
+        '<button type="button" class="adam-button adam-button--secondary" data-gsk-breakdown-page="' + (page - 1) + '"' + (page <= 1 ? ' disabled' : '') + ' aria-label="' + gskEscapeAttribute(breakdownText.previous) + '">' + gskEscape(breakdownText.previous) + '</button>' +
+        '<button type="button" class="adam-button adam-button--secondary" data-gsk-breakdown-page="' + (page + 1) + '"' + (page >= totalPages ? ' disabled' : '') + ' aria-label="' + gskEscapeAttribute(breakdownText.next) + '">' + gskEscape(breakdownText.next) + '</button></span></div>';
+    }
+    container.innerHTML = html;
+    container.querySelectorAll('[data-gsk-breakdown-page]').forEach(function(button){
+      button.addEventListener('click', function(){
+        breakdownPages.brand = parseInt(this.dataset.gskBreakdownPage, 10) || 1;
+        gskRenderBreakdown('brand');
+      });
+    });
+  }
+
+  function gskLoadBreakdown(days, dimension, generation, force){
+    var container = document.getElementById('gsk-breakdown-' + dimension);
+    var total = document.getElementById('gsk-breakdown-total-' + dimension);
+    if (!container || !total) return;
+    container.innerHTML = '<p class="gsk-loading"><span class="gsk-spinner"></span> ' + gskEscape(breakdownText.loading) + '</p>';
+    total.textContent = '—';
+    var d = '&days=' + encodeURIComponent(days) + '&dimension=' + encodeURIComponent(dimension);
+    gskFetch(gaEndpoint + '&action=breakdown' + d + '&csrf_token=' + encodeURIComponent(csrf), force).then(function(j){
+      if (j.stale || !gskIsCurrent(days, generation)) return;
+      if (j.ok && j.dimension === dimension && Array.isArray(j.rows)) {
+        breakdownData[dimension] = { rows: j.rows, total: Number(j.total || 0) };
+        breakdownLoaded[dimension] = days + ':' + generation;
+        if (dimension === 'brand') breakdownPages.brand = 1;
+        gskRenderBreakdown(dimension);
+      } else {
+        container.innerHTML = '<p class="gsk-meta">' + gskEscape(j.error || breakdownText.loadError) + '</p>';
+      }
+    });
+  }
+
+  function gskSelectBreakdown(dimension, focus){
+    if (['channel', 'device', 'brand'].indexOf(dimension) === -1) return;
+    currentBreakdownDimension = dimension;
+    document.querySelectorAll('.gsk-breakdown-tab').forEach(function(tab){
+      var active = tab.dataset.breakdownDimension === dimension;
+      tab.classList.toggle('active', active);
+      tab.setAttribute('aria-selected', active ? 'true' : 'false');
+      tab.tabIndex = active ? 0 : -1;
+      if (active && focus) tab.focus();
+    });
+    document.querySelectorAll('.gsk-breakdown-panel').forEach(function(panel){
+      panel.hidden = panel.id !== 'gsk-breakdown-panel-' + dimension;
+    });
+    lazyActivated.breakdown = true;
+    if (breakdownLoaded[dimension] !== currentDays + ':' + currentGeneration) {
+      gskLoadBreakdown(currentDays, dimension, currentGeneration, false);
+    }
   }
 
   function gskLoadContent(days, generation, force){
@@ -954,7 +1088,7 @@ html.theme-dark .gsk-bar-track { background: #0a111a; }
       gskLoadSearchSummary(site, currentDays, generation, force);
     }
     if (section === 'trend') gskLoadAnalyticsTrend(currentDays, generation, force);
-    if (section === 'channels') gskLoadChannels(currentDays, generation, force);
+    if (section === 'breakdown') gskLoadBreakdown(currentDays, currentBreakdownDimension, generation, force);
     if (section === 'locations') gskLoadLocations(currentDays, currentLocationDimension, generation, force);
     if (section === 'search') gskLoadSearchConsole(site, currentDays, generation, force);
     if (section === 'content') gskLoadContent(currentDays, generation, force);
@@ -1007,7 +1141,10 @@ html.theme-dark .gsk-bar-track { background: #0a111a; }
     var btns = document.querySelectorAll('#gsk-period-btns button');
     btns.forEach(function(b){ b.classList.toggle('active', b.dataset.days === days); });
     if (lazyActivated.trend) document.getElementById('gsk-traffic-chart').innerHTML = '<p class="gsk-loading"><span class="gsk-spinner"></span> Loading…</p>';
-    if (lazyActivated.channels) document.getElementById('gsk-channels').innerHTML = '<p class="gsk-loading"><span class="gsk-spinner"></span> Loading…</p>';
+    if (lazyActivated.breakdown) {
+      document.getElementById('gsk-breakdown-' + currentBreakdownDimension).innerHTML = '<p class="gsk-loading"><span class="gsk-spinner"></span> ' + gskEscape(breakdownText.loading) + '</p>';
+      document.getElementById('gsk-breakdown-total-' + currentBreakdownDimension).textContent = '—';
+    }
     if (lazyActivated.locations) document.getElementById('gsk-locations').innerHTML = '<p class="gsk-loading"><span class="gsk-spinner"></span> Loading…</p>';
     if (lazyActivated.search) {
       document.getElementById('gsk-sc-chart').innerHTML = '<p class="gsk-loading"><span class="gsk-spinner"></span> Loading…</p>';
@@ -1016,7 +1153,7 @@ html.theme-dark .gsk-bar-track { background: #0a111a; }
       document.getElementById('gsk-sc-data-status').textContent = '';
     }
     if (lazyActivated.content) document.getElementById('gsk-ga-pages').innerHTML = '<p class="gsk-loading"><span class="gsk-spinner"></span> Loading…</p>';
-    ['summary', 'trend', 'channels', 'locations', 'search', 'content'].forEach(function(section){
+    ['summary', 'trend', 'breakdown', 'locations', 'search', 'content'].forEach(function(section){
       if (lazyActivated[section]) gskRunLazySection(section, false);
     });
   }
@@ -1027,6 +1164,20 @@ html.theme-dark .gsk-bar-track { background: #0a111a; }
     });
     document.querySelectorAll('.gsk-location-tab').forEach(function(tab){
       tab.addEventListener('click', function(){ gskSelectLocation(this.dataset.dimension); });
+    });
+    var breakdownTabs = Array.prototype.slice.call(document.querySelectorAll('.gsk-breakdown-tab'));
+    breakdownTabs.forEach(function(tab, index){
+      tab.addEventListener('click', function(){ gskSelectBreakdown(this.dataset.breakdownDimension, false); });
+      tab.addEventListener('keydown', function(event){
+        var nextIndex = index;
+        if (event.key === 'ArrowRight') nextIndex = (index + 1) % breakdownTabs.length;
+        else if (event.key === 'ArrowLeft') nextIndex = (index - 1 + breakdownTabs.length) % breakdownTabs.length;
+        else if (event.key === 'Home') nextIndex = 0;
+        else if (event.key === 'End') nextIndex = breakdownTabs.length - 1;
+        else return;
+        event.preventDefault();
+        gskSelectBreakdown(breakdownTabs[nextIndex].dataset.breakdownDimension, true);
+      });
     });
     gskSetPeriod('30');
   }

@@ -89,6 +89,32 @@ function gsk_consent_category_policy(PDO $pdo): string {
     return preg_match('/\A[a-f0-9]{64}\z/', $policy) === 1 ? $policy : 'legacy';
 }
 
+function gsk_analytics_breakdown_config(string $dimension): ?array {
+    $configs = [
+        'channel' => [
+            'ga_dimension' => 'sessionDefaultChannelGroup',
+            'dimension_filter' => null,
+        ],
+        'device' => [
+            'ga_dimension' => 'deviceCategory',
+            'dimension_filter' => null,
+        ],
+        'brand' => [
+            'ga_dimension' => 'mobileDeviceBranding',
+            'dimension_filter' => [
+                'filter' => [
+                    'fieldName' => 'deviceCategory',
+                    'inListFilter' => [
+                        'values' => ['mobile', 'tablet'],
+                        'caseSensitive' => false,
+                    ],
+                ],
+            ],
+        ],
+    ];
+    return $configs[$dimension] ?? null;
+}
+
 function gsk_valid_privacy_url(string $url): bool {
     if ($url === '') return true;
     if (preg_match('/[\x00-\x20\x7F]/', $url) === 1 || str_contains($url, '\\')) return false;
@@ -105,7 +131,7 @@ function gsk_help_tooltip(string $id, string $label, string $description): strin
 }
 
 function gsk_register_translations(PDO $pdo): void {
-    if (gsk_setting($pdo, GSK_I18N_VERSION_KEY) === '9') return;
+    if (gsk_setting($pdo, GSK_I18N_VERSION_KEY) === '10') return;
 
     $translations = [
         'Active users' => 'Pengguna aktif',
@@ -123,6 +149,25 @@ function gsk_register_translations(PDO $pdo): void {
         'Realtime - last 30 minutes' => 'Waktu nyata - 30 menit terakhir',
         'Daily active users' => 'Pengguna aktif harian',
         'Channels' => 'Saluran',
+        'Traffic breakdown' => 'Rincian traffic',
+        'Devices' => 'Perangkat',
+        'Brands' => 'Merek',
+        'Sessions' => 'Sesi',
+        'Desktop' => 'Desktop',
+        'Mobile' => 'Seluler',
+        'Tablet' => 'Tablet',
+        'Unknown' => 'Tidak diketahui',
+        'Other' => 'Lainnya',
+        'Compare sessions by acquisition channel, device category, or mobile and tablet device brand.' => 'Bandingkan sesi berdasarkan saluran akuisisi, kategori perangkat, atau merek perangkat seluler dan tablet.',
+        'Sessions grouped by GA4 default traffic source categories.' => 'Sesi yang dikelompokkan berdasarkan kategori sumber traffic bawaan GA4.',
+        'Sessions grouped by device category.' => 'Sesi yang dikelompokkan berdasarkan kategori perangkat.',
+        'Mobile and tablet sessions grouped by device brand.' => 'Sesi seluler dan tablet yang dikelompokkan berdasarkan merek perangkat.',
+        'Could not load traffic breakdown' => 'Tidak dapat memuat rincian traffic',
+        'No data' => 'Tidak ada data',
+        'Previous' => 'Sebelumnya',
+        'Next' => 'Berikutnya',
+        'Showing {start}-{end} of {total}' => 'Menampilkan {start}-{end} dari {total}',
+        'Loading…' => 'Memuat…',
         'Countries' => 'Negara',
         'Locations' => 'Lokasi',
         'Provinces' => 'Provinsi',
@@ -174,7 +219,7 @@ function gsk_register_translations(PDO $pdo): void {
         foreach ($translations as $source => $value) {
             $stmt->execute([GSK_I18N_SCOPE, $source, $value, 'id']);
         }
-        gsk_save_setting($pdo, GSK_I18N_VERSION_KEY, '9');
+        gsk_save_setting($pdo, GSK_I18N_VERSION_KEY, '10');
     } catch (Throwable $e) {
         error_log('[jy-metrics] Could not register translations: ' . $e->getMessage());
     }

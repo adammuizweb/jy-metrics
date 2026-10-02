@@ -116,7 +116,7 @@ function gskSettingsHelp(string $id, string $description): string {
       <p class="gsk-admin__subtitle">Connect this Jyavani site to your own Google Cloud project.</p>
     </div>
     <div class="gsk-admin__actions">
-      <a href="<?= gsk_e($wizardPage) ?>" class="adam-cancle">Run Setup Wizard</a>
+      <a href="<?= gsk_e($wizardPage) ?>" class="adam-button gsk-wizard-cta">Run Setup Wizard</a>
       <a href="<?= gsk_e($basePage) ?>" class="adam-cancle">← Back to Dashboard</a>
     </div>
   </div>
@@ -374,6 +374,8 @@ function gskSettingsHelp(string $id, string $description): string {
 .gsk-flow-step.is-complete .gsk-flow-step__number { background: var(--adam-success); color: #fff; }
 .gsk-flow-step.is-locked { opacity: .48; }
 .gsk-flow-step.is-locked .gsk-flow-step__toggle { cursor: not-allowed; }
+.gsk-admin__actions .gsk-wizard-cta { border: 0; background: linear-gradient(135deg, #2563eb, #7c3aed) !important; color: #fff !important; box-shadow: 0 6px 18px rgba(79, 70, 229, .24); }
+.gsk-admin__actions .gsk-wizard-cta:hover { color: #fff !important; filter: brightness(1.08); transform: translateY(-1px); }
 .gsk-flow-step__body .gsk-wizard-cta { border: 0; background: linear-gradient(135deg, #2563eb, #7c3aed) !important; color: #fff !important; box-shadow: 0 6px 18px rgba(79, 70, 229, .24); }
 .gsk-flow-step__body .gsk-wizard-cta:hover { color: #fff !important; filter: brightness(1.08); transform: translateY(-1px); }
 .gsk-list { list-style: none; padding: 0; margin: 0; }

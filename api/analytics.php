@@ -73,17 +73,28 @@ if ($action === 'trend') {
     gsk_json_response($result);
 }
 
-if ($action === 'channels') {
-    $cacheKey = 'gsk_ga4_channels_' . md5($propertyId . $start . $end);
+if ($action === 'breakdown') {
+    $dimension = trim((string)($_GET['dimension'] ?? 'channel'));
+    $breakdownConfig = gsk_analytics_breakdown_config($dimension);
+    if ($breakdownConfig === null) {
+        gsk_json_response(['ok' => false, 'error' => 'Invalid traffic breakdown dimension']);
+    }
+
+    $cacheKey = 'gsk_ga4_breakdown_v1_' . md5($propertyId . $start . $end . $dimension);
     $cached = gsk_cache_get($pdo, $cacheKey, 3600);
     if ($cached !== null) gsk_json_response($cached);
 
-    $body = json_encode([
+    $request = [
         'dateRanges' => [['startDate' => $start, 'endDate' => $end]],
-        'dimensions' => [['name' => 'sessionDefaultChannelGroup']],
+        'dimensions' => [['name' => $breakdownConfig['ga_dimension']]],
         'metrics'    => [['name' => 'sessions']],
         'orderBys'   => [['metric' => ['metricName' => 'sessions'], 'desc' => true]],
-    ], JSON_UNESCAPED_UNICODE);
+        'limit'      => 100,
+    ];
+    if ($breakdownConfig['dimension_filter'] !== null) {
+        $request['dimensionFilter'] = $breakdownConfig['dimension_filter'];
+    }
+    $body = json_encode($request, JSON_UNESCAPED_UNICODE);
     $res = gsk_json_request($baseUrl, 'POST', [
         'Authorization: Bearer ' . $token,
         'Content-Type: application/json',
@@ -92,17 +103,25 @@ if ($action === 'channels') {
         $err = $res['data']['error']['message'] ?? ('HTTP ' . $res['code']);
         gsk_json_response(['ok' => false, 'error' => $err, 'code' => $res['code']]);
     }
-    $channels = [];
+    $rows = [];
     $total = 0;
     foreach ($res['data']['rows'] ?? [] as $row) {
         $sessions = (int)($row['metricValues'][0]['value'] ?? 0);
+        $label = trim((string)($row['dimensionValues'][0]['value'] ?? ''));
+        if ($label === '' || $label === '(not set)') {
+            $label = gsk_t('Unknown');
+        } elseif ($label === '(other)') {
+            $label = gsk_t('Other');
+        } elseif ($dimension === 'device') {
+            $label = gsk_t(ucfirst(strtolower($label)));
+        }
         $total += $sessions;
-        $channels[] = [
-            'channel' => $row['dimensionValues'][0]['value'] ?? '(unknown)',
+        $rows[] = [
+            'label' => $label,
             'sessions' => $sessions,
         ];
     }
-    $result = ['ok' => true, 'startDate' => $start, 'endDate' => $end, 'total' => $total, 'channels' => $channels];
+    $result = ['ok' => true, 'dimension' => $dimension, 'startDate' => $start, 'endDate' => $end, 'total' => $total, 'rows' => $rows];
     gsk_cache_set($pdo, $cacheKey, $result);
     gsk_json_response($result);
 }

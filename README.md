@@ -12,6 +12,7 @@ at once.
 - Summary metrics for visitors, impressions, clicks, and average position
 - Realtime activity with country and city breakdowns
 - Daily traffic and search-performance trends
+- Session breakdowns by acquisition channel, device category, and mobile or tablet device brand
 - Channel, country, province, and city reports
 - Top search queries and top-performing pages
 - Mobile and desktop page experience reports

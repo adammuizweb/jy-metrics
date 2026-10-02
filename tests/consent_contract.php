@@ -45,6 +45,7 @@ $check(str_contains($settingsSource, 'name="consent_analytics"') && str_contains
 $check(str_contains($settingsSource, 'name="consent_categories_present"') && str_contains($settingsSource, '$consentCategoriesPresent'), 'older settings forms preserve category visibility when new controls are absent');
 $check(str_contains($settingsSource, 'This does not guarantee that every activity is tracked') && str_contains($settingsSource, 'data-gsk-consent-impact'), 'disabled consent mode explains the limits of visitor tracking');
 $check(str_contains($settingsSource, '.gsk-form__foot { position: fixed') && str_contains($settingsSource, 'data-gsk-save-note') && !str_contains($settingsSource, 'gsk-form__foot .gsk-wizard-cta'), 'settings use a focused floating save action instead of competing wizard styling');
+$check(str_contains($settingsSource, '.gsk-admin__actions .gsk-wizard-cta') && str_contains($settingsSource, 'linear-gradient(135deg, #2563eb, #7c3aed)'), 'setup wizard retains its distinct blue gradient styling in the header');
 
 $GLOBALS['contract_settings'] = [];
 $check(gsk_consent_categories($pdo) === ['analytics' => true, 'advertising' => true], 'existing installations keep both optional categories visible by default');
