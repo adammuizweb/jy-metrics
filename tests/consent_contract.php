@@ -40,8 +40,11 @@ $check(gsk_valid_privacy_url('') && gsk_valid_privacy_url('/privacy/') && gsk_va
 $check(!gsk_valid_privacy_url('//example.com') && !gsk_valid_privacy_url('/\\example.com') && !gsk_valid_privacy_url('javascript:alert(1)') && !gsk_valid_privacy_url('/bad path'), 'ambiguous and executable privacy URLs are rejected');
 $check(!str_contains($settingsSource, 'privacy_page_linked') && !str_contains($settingsSource, 'site footer'), 'privacy settings remain tenant-neutral without a footer-specific confirmation');
 $check(str_contains($settingsSource, 'aria-describedby=') && str_contains($settingsSource, 'role="tooltip"') && str_contains($settingsSource, ':focus-within .gsk-help-tip'), 'settings architecture help is keyboard and assistive-technology accessible');
+$check(str_contains($settingsSource, '.gsk-card--collapsible.is-expanded { overflow: visible; }') && str_contains($settingsSource, "card.classList.toggle('is-expanded', expanded)"), 'expanded settings cards allow help tooltips to escape their card boundary');
 $check(str_contains($settingsSource, 'name="consent_analytics"') && str_contains($settingsSource, 'name="consent_advertising"'), 'settings expose separate Analytics and Advertising visibility controls');
 $check(str_contains($settingsSource, 'name="consent_categories_present"') && str_contains($settingsSource, '$consentCategoriesPresent'), 'older settings forms preserve category visibility when new controls are absent');
+$check(str_contains($settingsSource, 'This does not guarantee that every activity is tracked') && str_contains($settingsSource, 'data-gsk-consent-impact'), 'disabled consent mode explains the limits of visitor tracking');
+$check(str_contains($settingsSource, '.gsk-form__foot { position: fixed') && str_contains($settingsSource, 'data-gsk-save-note') && !str_contains($settingsSource, 'gsk-form__foot .gsk-wizard-cta'), 'settings use a focused floating save action instead of competing wizard styling');
 
 $GLOBALS['contract_settings'] = [];
 $check(gsk_consent_categories($pdo) === ['analytics' => true, 'advertising' => true], 'existing installations keep both optional categories visible by default');

@@ -115,7 +115,10 @@ function gskSettingsHelp(string $id, string $description): string {
       <h1 class="gsk-admin__title">Jy Metrics Settings</h1>
       <p class="gsk-admin__subtitle">Connect this Jyavani site to your own Google Cloud project.</p>
     </div>
-    <a href="<?= gsk_e($basePage) ?>" class="adam-cancle">← Back to Dashboard</a>
+    <div class="gsk-admin__actions">
+      <a href="<?= gsk_e($wizardPage) ?>" class="adam-cancle">Run Setup Wizard</a>
+      <a href="<?= gsk_e($basePage) ?>" class="adam-cancle">← Back to Dashboard</a>
+    </div>
   </div>
 
   <?php if ($message !== ''): ?>
@@ -208,6 +211,9 @@ function gskSettingsHelp(string $id, string $description): string {
             <span class="gsk-field__hint">The close button rejects optional services. Global Privacy Control is honored by keeping Advertising disabled.</span>
           </div>
         </div>
+        <div class="gsk-consent-impact" data-gsk-consent-impact <?= $consentMode === 'off' ? '' : 'hidden' ?>>
+          <strong>Consent is disabled.</strong> Configured Jy Metrics snippets load without asking the visitor first. This does not guarantee that every activity is tracked: browser privacy controls, blockers, network failures, and Google or Tag Manager configuration can still prevent collection.
+        </div>
         <div class="gsk-field">
           <div class="gsk-field-label-row"><span class="gsk-field__label">Cookie categories</span><?= gskSettingsHelp('gsk-consent-categories-help', 'Necessary is always active. Disable an optional category when this site does not use services in that category.') ?></div>
           <div class="gsk-confirm-row">
@@ -262,8 +268,8 @@ function gskSettingsHelp(string $id, string $description): string {
     </div>
 
     <div class="gsk-form__foot">
-      <a href="<?= gsk_e($wizardPage) ?>" class="adam-button gsk-wizard-cta">Run Setup Wizard</a>
-      <button type="submit" class="adam-button">Save Settings</button>
+      <span class="gsk-save-note" data-gsk-save-note>Save any changes made on this page.</span>
+      <button type="submit" class="adam-button gsk-save-button">Save Settings</button>
     </div>
   </form>
 
@@ -293,6 +299,7 @@ function gskSettingsHelp(string $id, string $description): string {
 <style>
 .gsk-admin { color: var(--adam-text); max-width: 900px; }
 .gsk-admin__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+.gsk-admin__actions { display: flex; align-items: center; justify-content: flex-end; gap: .5rem; flex-wrap: wrap; }
 .gsk-admin__title { font-size: 1.35rem; font-weight: 700; margin: 0 0 .25rem; }
 .gsk-admin__subtitle { margin: 0; color: var(--adam-muted); font-size: .9rem; }
 .gsk-alert { padding: .7rem .9rem; border-radius: 8px; margin-bottom: 1rem; font-size: .9rem; }
@@ -300,14 +307,15 @@ function gskSettingsHelp(string $id, string $description): string {
 .gsk-alert--error { background: rgba(220, 38, 38, .12); color: var(--adam-danger); border: 1px solid rgba(220, 38, 38, .25); }
 .gsk-alert--info { background: rgba(59, 130, 246, .12); color: var(--adam-primary); border: 1px solid rgba(59, 130, 246, .25); }
 .gsk-card { background: var(--adam-card); border: 1px solid var(--adam-border); border-radius: 12px; margin-bottom: 1rem; overflow: hidden; }
+.gsk-card--collapsible.is-expanded { overflow: visible; }
 .gsk-card--info { border-left: 4px solid var(--adam-success); }
 .gsk-card__head { padding: 1rem 1.25rem; border-bottom: 1px solid var(--adam-border); }
 .gsk-card__toggle { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 1rem; border: 0; background: transparent; color: var(--adam-text); text-align: left; cursor: pointer; font: inherit; }
 .gsk-card__summary { color: var(--adam-muted); font-size: .78rem; font-weight: 500; text-align: right; }
 .gsk-help { display: inline-grid; place-items: center; width: 1rem; height: 1rem; margin-left: .2rem; border: 1px solid var(--adam-border-2); border-radius: 50%; color: var(--adam-muted); font-size: .65rem; vertical-align: middle; cursor: help; }
 .gsk-help-wrap { position: relative; display: inline-flex; align-items: center; }
-.gsk-help-tip { position: absolute; z-index: 20; left: 50%; bottom: calc(100% + .45rem); width: min(280px, 70vw); padding: .55rem .65rem; border: 1px solid var(--adam-border); border-radius: 7px; background: var(--adam-card); color: var(--adam-text); box-shadow: 0 8px 24px rgba(15,23,42,.18); font-size: .75rem; font-weight: 400; line-height: 1.4; opacity: 0; pointer-events: none; transform: translate(-50%, .2rem); transition: opacity .15s, transform .15s; }
-.gsk-help-wrap:hover .gsk-help-tip,.gsk-help-wrap:focus-within .gsk-help-tip { opacity: 1; transform: translate(-50%, 0); }
+.gsk-help-tip { position: absolute; z-index: 20; left: 50%; bottom: calc(100% + .45rem); width: min(280px, 70vw); padding: .55rem .65rem; border: 1px solid var(--adam-border); border-radius: 7px; background: var(--adam-card); color: var(--adam-text); box-shadow: 0 8px 24px rgba(15,23,42,.18); font-size: .75rem; font-weight: 400; line-height: 1.4; opacity: 0; pointer-events: none; transform: translate(-50%, .2rem); visibility: hidden; transition: opacity .15s, transform .15s, visibility .15s; }
+.gsk-help-wrap:hover .gsk-help-tip,.gsk-help-wrap:focus-within .gsk-help-tip { opacity: 1; transform: translate(-50%, 0); visibility: visible; }
 .gsk-card__toggle:hover .gsk-card__title { color: var(--adam-primary); }
 .gsk-card__title { font-size: 1.05rem; font-weight: 600; margin: 0; }
 .gsk-card__body { padding: 1.25rem; }
@@ -323,6 +331,8 @@ function gskSettingsHelp(string $id, string $description): string {
 .gsk-field label { font-size: .75rem; color: var(--adam-muted); font-weight: 600; }
 .gsk-field-label-row { display: flex; align-items: center; gap: .15rem; }
 .gsk-field__hint { font-size: .75rem; color: var(--adam-muted); line-height: 1.45; }
+.gsk-consent-impact { margin: 0 0 1rem; padding: .75rem .85rem; border: 1px solid rgba(217,119,6,.3); border-radius: 9px; background: rgba(217,119,6,.08); color: var(--adam-text); font-size: .82rem; line-height: 1.5; }
+.gsk-consent-impact[hidden] { display: none; }
 .gsk-confirm-row { display: flex; align-items: flex-start; gap: .35rem; margin: .2rem 0 1rem; }
 .gsk-confirm { display: flex; flex: 1; align-items: flex-start; gap: .65rem; padding: .75rem; border: 1px solid var(--adam-border); border-radius: 9px; color: var(--adam-text); cursor: pointer; }
 .gsk-confirm>input { margin-top: .15rem; }
@@ -333,7 +343,11 @@ function gskSettingsHelp(string $id, string $description): string {
 .gsk-field-row:last-child { margin-bottom: 0; }
 .gsk-copy-row { display: flex; gap: .5rem; align-items: center; }
 .gsk-copy-row input { flex: 1; font-size: .8rem; }
-.gsk-form__foot { display: flex; justify-content: flex-end; gap: .5rem; margin: 1rem 0 1.5rem; }
+.gsk-form { padding-bottom: 4.75rem; }
+.gsk-form__foot { position: fixed; z-index: 100; right: 1rem; bottom: 1rem; display: flex; width: min(360px, calc(100vw - 2rem)); box-sizing: border-box; align-items: center; justify-content: space-between; gap: 1rem; margin: 0; padding: .75rem; border: 1px solid var(--adam-border); border-radius: 11px; background: var(--adam-card); box-shadow: 0 10px 28px rgba(15,23,42,.18); }
+.gsk-save-note { color: var(--adam-muted); font-size: .78rem; }
+.gsk-form.is-dirty .gsk-save-note { color: var(--adam-text); font-weight: 600; }
+.gsk-save-button { flex: 0 0 auto; min-width: 9rem; }
 .gsk-meta { font-size: .85rem; color: var(--adam-muted); margin: 0 0 1rem; }
 .gsk-meta a { color: var(--adam-primary); }
 .gsk-setup { border-left: 4px solid var(--adam-primary); }
@@ -360,8 +374,6 @@ function gskSettingsHelp(string $id, string $description): string {
 .gsk-flow-step.is-complete .gsk-flow-step__number { background: var(--adam-success); color: #fff; }
 .gsk-flow-step.is-locked { opacity: .48; }
 .gsk-flow-step.is-locked .gsk-flow-step__toggle { cursor: not-allowed; }
-.gsk-form__foot .gsk-wizard-cta { border: 0; background: linear-gradient(135deg, #2563eb, #7c3aed) !important; color: #fff !important; box-shadow: 0 6px 18px rgba(79, 70, 229, .24); }
-.gsk-form__foot .gsk-wizard-cta:hover { color: #fff !important; filter: brightness(1.08); transform: translateY(-1px); }
 .gsk-flow-step__body .gsk-wizard-cta { border: 0; background: linear-gradient(135deg, #2563eb, #7c3aed) !important; color: #fff !important; box-shadow: 0 6px 18px rgba(79, 70, 229, .24); }
 .gsk-flow-step__body .gsk-wizard-cta:hover { color: #fff !important; filter: brightness(1.08); transform: translateY(-1px); }
 .gsk-list { list-style: none; padding: 0; margin: 0; }
@@ -370,6 +382,12 @@ function gskSettingsHelp(string $id, string $description): string {
 .gsk-dot--on { background: var(--adam-success); }
 .gsk-dot--off { background: var(--adam-muted); }
 html.theme-dark .gsk-card { background: #0f1720; }
+@media (max-width: 560px) {
+  .gsk-admin__actions { width: 100%; justify-content: flex-start; }
+  .gsk-form__foot { right: .5rem; bottom: .5rem; width: calc(100vw - 1rem); }
+  .gsk-save-note { display: none; }
+  .gsk-save-button { width: 100%; }
+}
 </style>
 
 <script>
@@ -457,11 +475,43 @@ html.theme-dark .gsk-card { background: #0f1720; }
     var toggle = card.querySelector('.gsk-card__toggle');
     var body = card.querySelector('[data-gsk-card-body]');
     if (!toggle || !body) return;
+    function setExpanded(expanded) {
+      toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      body.hidden = !expanded;
+      card.classList.toggle('is-expanded', expanded);
+    }
+    setExpanded(toggle.getAttribute('aria-expanded') === 'true');
     toggle.addEventListener('click', function() {
       var expanded = toggle.getAttribute('aria-expanded') === 'true';
-      toggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');
-      body.hidden = expanded;
+      setExpanded(!expanded);
     });
   });
+
+  var form = document.querySelector('.gsk-form');
+  if (form) {
+    var saveNote = form.querySelector('[data-gsk-save-note]');
+    var consentMode = form.querySelector('#gsk-consent-mode');
+    var consentImpact = form.querySelector('[data-gsk-consent-impact]');
+    var submitting = false;
+    function markDirty() {
+      form.classList.add('is-dirty');
+      if (saveNote) saveNote.textContent = 'You have unsaved changes.';
+    }
+    function syncConsentImpact() {
+      if (consentMode && consentImpact) consentImpact.hidden = consentMode.value !== 'off';
+    }
+    form.addEventListener('input', markDirty);
+    form.addEventListener('change', function() {
+      markDirty();
+      syncConsentImpact();
+    });
+    form.addEventListener('submit', function() { submitting = true; });
+    addEventListener('beforeunload', function(event) {
+      if (submitting || !form.classList.contains('is-dirty')) return;
+      event.preventDefault();
+      event.returnValue = '';
+    });
+    syncConsentImpact();
+  }
 })();
 </script>
