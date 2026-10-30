@@ -3,11 +3,17 @@ declare(strict_types=1);
 
 define('PLUGIN_SYSTEM_LOADED', true);
 $GLOBALS['contract_hooks'] = [];
+$GLOBALS['contract_filters'] = [];
 $GLOBALS['contract_settings'] = [];
 
 function add_action(string $hook, callable $callback): void
 {
     $GLOBALS['contract_hooks'][$hook][] = $callback;
+}
+
+function add_filter(string $hook, callable $callback, int $priority = 10): void
+{
+    $GLOBALS['contract_filters'][$hook][$priority][] = $callback;
 }
 
 function settings_get(PDO $pdo, string $key, mixed $default = ''): mixed

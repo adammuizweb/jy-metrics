@@ -8,6 +8,7 @@ if (!defined('PLUGIN_SYSTEM_LOADED')) {
 
 const GSK_PLUGIN_NAME = 'jy-metrics';
 const GSK_CACHE_TABLE = 'google_site_kit_cache';
+const GSK_CONTENT_VIEWS_TABLE = 'jy_metrics_content_views_daily';
 const GSK_I18N_SCOPE = 'jy-metrics';
 const GSK_I18N_VERSION_KEY = 'jym_i18n_version';
 
@@ -33,6 +34,10 @@ const GSK_PRIVACY_PAGE_LINKED_KEY = 'gsk_privacy_page_linked';
 const GSK_CONSENT_ANALYTICS_KEY = 'gsk_consent_analytics_enabled';
 const GSK_CONSENT_ADVERTISING_KEY = 'gsk_consent_advertising_enabled';
 const GSK_CONSENT_POLICY_KEY = 'gsk_consent_category_policy';
+const GSK_SHOW_DASHBOARD_VIEWS_KEY = 'gsk_show_dashboard_view_counts';
+const GSK_SHOW_PUBLIC_VIEWS_KEY = 'gsk_show_public_view_count';
+const GSK_POPULAR_POSTS_PERIOD_KEY = 'gsk_popular_posts_period';
+const GSK_POPULAR_POSTS_LIMIT_KEY = 'gsk_popular_posts_limit';
 
 function gsk_plugin_dir(): string {
     return defined('PLUGIN_PATH') ? PLUGIN_PATH . '/' . GSK_PLUGIN_NAME : __DIR__;
@@ -59,6 +64,8 @@ function gsk_all_settings(PDO $pdo): array {
         GSK_ADSENSE_CLIENT_KEY, GSK_SITE_VERIFICATION_KEY, GSK_PAGESPEED_API_KEY,
         GSK_CONSENT_MODE_KEY, GSK_CONSENT_REGION_SOURCE_KEY, GSK_PRIVACY_URL_KEY, GSK_PRIVACY_PAGE_LINKED_KEY,
         GSK_CONSENT_ANALYTICS_KEY, GSK_CONSENT_ADVERTISING_KEY, GSK_CONSENT_POLICY_KEY,
+        GSK_SHOW_DASHBOARD_VIEWS_KEY, GSK_SHOW_PUBLIC_VIEWS_KEY,
+        GSK_POPULAR_POSTS_PERIOD_KEY, GSK_POPULAR_POSTS_LIMIT_KEY,
     ];
     $out = [];
     foreach ($keys as $k) {
@@ -87,6 +94,31 @@ function gsk_consent_categories(PDO $pdo): array {
 function gsk_consent_category_policy(PDO $pdo): string {
     $policy = gsk_setting($pdo, GSK_CONSENT_POLICY_KEY, 'legacy');
     return preg_match('/\A[a-f0-9]{64}\z/', $policy) === 1 ? $policy : 'legacy';
+}
+
+function gsk_content_view_settings(PDO $pdo): array {
+    $period = (int)gsk_setting($pdo, GSK_POPULAR_POSTS_PERIOD_KEY, '30');
+    if (!in_array($period, [7, 30, 365], true)) $period = 30;
+    $limit = filter_var(gsk_setting($pdo, GSK_POPULAR_POSTS_LIMIT_KEY, '5'), FILTER_VALIDATE_INT);
+    if ($limit === false || $limit < 1 || $limit > 20) $limit = 5;
+    return [
+        'show_dashboard' => gsk_setting($pdo, GSK_SHOW_DASHBOARD_VIEWS_KEY, '0') === '1',
+        'show_public' => gsk_setting($pdo, GSK_SHOW_PUBLIC_VIEWS_KEY, '0') === '1',
+        'popular_period' => $period,
+        'popular_limit' => $limit,
+    ];
+}
+
+function gsk_normalize_content_view_input(array $input): ?array {
+    $period = filter_var($input['popular_posts_period'] ?? null, FILTER_VALIDATE_INT);
+    $limit = filter_var($input['popular_posts_limit'] ?? null, FILTER_VALIDATE_INT);
+    if (!in_array($period, [7, 30, 365], true) || $limit === false || $limit < 1 || $limit > 20) return null;
+    return [
+        'show_dashboard' => isset($input['show_dashboard_views']) ? '1' : '0',
+        'show_public' => isset($input['show_public_views']) ? '1' : '0',
+        'popular_period' => (string)$period,
+        'popular_limit' => (string)$limit,
+    ];
 }
 
 function gsk_analytics_breakdown_config(string $dimension): ?array {
@@ -131,7 +163,7 @@ function gsk_help_tooltip(string $id, string $label, string $description): strin
 }
 
 function gsk_register_translations(PDO $pdo): void {
-    if (gsk_setting($pdo, GSK_I18N_VERSION_KEY) === '10') return;
+    if (gsk_setting($pdo, GSK_I18N_VERSION_KEY) === '12') return;
 
     $translations = [
         'Active users' => 'Pengguna aktif',
@@ -212,6 +244,28 @@ function gsk_register_translations(PDO $pdo): void {
         'Reject all' => 'Tolak semua',
         'Global Privacy Control is active. Advertising remains disabled.' => 'Global Privacy Control aktif. Periklanan tetap dinonaktifkan.',
         'Tag Manager is treated as advertising because its container may run marketing tags.' => 'Tag Manager diperlakukan sebagai periklanan karena containernya dapat menjalankan tag pemasaran.',
+        '%s view' => '%s tampilan',
+        '%s views' => '%s tampilan',
+        'Popular Posts' => 'Artikel Populer',
+        'Published articles ranked by first-party views using the global Jy Metrics settings.' => 'Artikel terbit yang diurutkan berdasarkan tampilan pihak pertama menggunakan pengaturan global Jy Metrics.',
+        'No popular posts in this period.' => 'Belum ada artikel populer dalam periode ini.',
+        'Rank %d' => 'Peringkat %d',
+        'Open Jy Metrics dashboard' => 'Buka dasbor Jy Metrics',
+        'Content Views' => 'Tampilan Konten',
+        'First-party aggregate · visibility %s' => 'Agregat pihak pertama · visibilitas %s',
+        'enabled' => 'aktif',
+        'disabled' => 'nonaktif',
+        'Jy Metrics always collects anonymous daily totals for published content while the plugin is active. The aggregate contains only content identity, UTC date, and view count; it uses no visitor identifier or cookie and is independent of Google cookie consent. These controls affect visibility, not collection.' => 'Jy Metrics selalu mengumpulkan total harian anonim untuk konten terbit selama plugin aktif. Agregat hanya berisi identitas konten, tanggal UTC, dan jumlah tampilan; tanpa identitas pengunjung atau cookie dan tidak bergantung pada persetujuan cookie Google. Kontrol ini mengatur visibilitas, bukan pengumpulan.',
+        'Show dashboard view counts' => 'Tampilkan jumlah tampilan di dasbor',
+        'Add all-time counts to Article, Page, Theme Content, and Category row actions for report readers.' => 'Tambahkan jumlah sepanjang waktu ke tindakan baris Artikel, Halaman, Konten Tema, dan Kategori untuk pembaca laporan.',
+        'Show public view count on single Article/Page' => 'Tampilkan jumlah tampilan publik pada Artikel/Halaman tunggal',
+        'Prepend an accessible all-time count to single Article and Page content only.' => 'Tambahkan jumlah sepanjang waktu yang aksesibel di awal konten Artikel dan Halaman tunggal saja.',
+        'Popular Posts period' => 'Periode Artikel Populer',
+        '%d days' => '%d hari',
+        'Popular Posts item limit' => 'Batas item Artikel Populer',
+        'Global values used by every Jy Metrics Popular Posts Sidebar widget. Period and item limit are not configured per widget.' => 'Nilai global yang digunakan oleh setiap widget Sidebar Artikel Populer Jy Metrics. Periode dan batas item tidak diatur per widget.',
+        'Invalid privacy consent or content view settings.' => 'Pengaturan persetujuan privasi atau tampilan konten tidak valid.',
+        'Could not load search queries' => 'Tidak dapat memuat kueri penelusuran',
     ];
 
     try {
@@ -219,7 +273,7 @@ function gsk_register_translations(PDO $pdo): void {
         foreach ($translations as $source => $value) {
             $stmt->execute([GSK_I18N_SCOPE, $source, $value, 'id']);
         }
-        gsk_save_setting($pdo, GSK_I18N_VERSION_KEY, '10');
+        gsk_save_setting($pdo, GSK_I18N_VERSION_KEY, '12');
     } catch (Throwable $e) {
         error_log('[jy-metrics] Could not register translations: ' . $e->getMessage());
     }
@@ -547,7 +601,7 @@ function gsk_search_console_summary(PDO $pdo, string $siteUrl, string $startDate
 }
 
 function gsk_search_console_stats(PDO $pdo, string $siteUrl, string $startDate, string $endDate): array {
-    $cacheKey = 'gsk_sc_stats_v2_' . md5($siteUrl . $startDate . $endDate);
+    $cacheKey = 'gsk_sc_stats_v3_' . md5($siteUrl . $startDate . $endDate);
     $cached = gsk_cache_get($pdo, $cacheKey, 3600);
     if ($cached !== null) return $cached;
 
@@ -562,23 +616,25 @@ function gsk_search_console_stats(PDO $pdo, string $siteUrl, string $startDate, 
         'startDate' => $startDate,
         'endDate'   => $endDate,
         'dimensions' => ['query'],
-        'rowLimit'  => 10,
+        'rowLimit'  => 25000,
     ]);
     $queriesRes = gsk_json_request($url, 'POST', [
         'Authorization: Bearer ' . $token,
         'Content-Type: application/json',
     ], $queriesBody);
+    if (!$queriesRes['ok']) {
+        $err = $queriesRes['data']['error']['message'] ?? ($queriesRes['error'] ?? ('HTTP ' . ($queriesRes['code'] ?? 0)));
+        return ['ok' => false, 'error' => $err, 'code' => (int)($queriesRes['code'] ?? 0)];
+    }
     $queries = [];
-    if ($queriesRes['ok']) {
-        foreach ($queriesRes['data']['rows'] ?? [] as $r) {
-            $queries[] = [
-                'query'       => $r['keys'][0] ?? '',
-                'clicks'      => (float)($r['clicks'] ?? 0),
-                'impressions' => (float)($r['impressions'] ?? 0),
-                'ctr'         => (float)($r['ctr'] ?? 0),
-                'position'    => (float)($r['position'] ?? 0),
-            ];
-        }
+    foreach ($queriesRes['data']['rows'] ?? [] as $r) {
+        $queries[] = [
+            'query'       => $r['keys'][0] ?? '',
+            'clicks'      => (float)($r['clicks'] ?? 0),
+            'impressions' => (float)($r['impressions'] ?? 0),
+            'ctr'         => (float)($r['ctr'] ?? 0),
+            'position'    => (float)($r['position'] ?? 0),
+        ];
     }
 
     $result = $summary;
@@ -743,7 +799,219 @@ function gsk_e(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
 
+function gsk_view_payload(array $entity, array $context): ?array {
+    if (($context['schema'] ?? null) !== 1
+        || ($context['status'] ?? null) !== 'published'
+        || ($context['is_public'] ?? null) !== true
+        || ($context['request_method'] ?? null) !== 'GET'
+        || !is_int($context['page'] ?? null)
+        || $context['page'] < 1
+        || !is_int($entity['id'] ?? null)
+        || $entity['id'] < 1) return null;
+
+    $kind = $entity['kind'] ?? null;
+    $type = $entity['type'] ?? null;
+    $route = $context['route'] ?? null;
+    $routes = ['article' => 'single.post', 'page' => 'single.page', 'theme' => 'single.theme'];
+    $valid = ($kind === 'post' && is_string($type) && isset($routes[$type]) && $route === $routes[$type])
+        || ($kind === 'category' && $type === 'category' && $route === 'list.category');
+    if (!$valid) return null;
+    return ['kind' => $kind, 'type' => $type, 'id' => $entity['id']];
+}
+
+function gsk_record_content_view(PDO $pdo, array $view): bool {
+    $requestKey = $view['kind'] . ':' . $view['id'];
+    if (isset($GLOBALS['gsk_content_views_recorded'][$requestKey])) return false;
+    $GLOBALS['gsk_content_views_recorded'][$requestKey] = true;
+    try {
+        $stmt = $pdo->prepare('INSERT INTO `' . GSK_CONTENT_VIEWS_TABLE . '` (`entity_kind`, `entity_id`, `view_date_utc`, `entity_type`, `view_count`) VALUES (?, ?, ?, ?, 1) ON DUPLICATE KEY UPDATE `entity_type` = VALUES(`entity_type`), `view_count` = `view_count` + 1');
+        $stmt->execute([$view['kind'], $view['id'], gmdate('Y-m-d'), $view['type']]);
+        return true;
+    } catch (Throwable $e) {
+        error_log('[jy-metrics] Could not record content view: ' . $e->getMessage());
+        return false;
+    }
+}
+
+function gsk_frontend_entity_viewed(mixed $entity, mixed $context, mixed $pdo): void {
+    if (!is_array($entity) || !is_array($context) || !($pdo instanceof PDO)) return;
+    $view = gsk_view_payload($entity, $context);
+    if ($view === null) return;
+    if ($view['kind'] === 'post' && in_array($view['type'], ['article', 'page'], true)) {
+        $GLOBALS['gsk_current_public_view_entity'] = $view;
+    }
+    gsk_record_content_view($pdo, $view);
+}
+
+function gsk_content_view_total(PDO $pdo, string $kind, int $entityId): int {
+    if (!in_array($kind, ['post', 'category'], true) || $entityId < 1) return 0;
+    $cacheKey = $kind . ':' . $entityId;
+    if (isset($GLOBALS['gsk_content_view_totals'][$cacheKey])) return (int)$GLOBALS['gsk_content_view_totals'][$cacheKey];
+    try {
+        $stmt = $pdo->prepare('SELECT COALESCE(SUM(`view_count`), 0) FROM `' . GSK_CONTENT_VIEWS_TABLE . '` WHERE `entity_kind` = ? AND `entity_id` = ?');
+        $stmt->execute([$kind, $entityId]);
+        $total = max(0, (int)$stmt->fetchColumn());
+    } catch (Throwable $e) {
+        $total = 0;
+    }
+    $GLOBALS['gsk_content_view_totals'][$cacheKey] = $total;
+    return $total;
+}
+
+function gsk_localized_view_count(int $count): string {
+    $count = max(0, $count);
+    $locale = function_exists('get_locale') ? get_locale() : 'en';
+    $number = in_array(substr(strtolower($locale), 0, 2), ['de', 'id'], true)
+        ? number_format($count, 0, ',', '.')
+        : number_format($count);
+    if (class_exists('NumberFormatter')) {
+        $formatter = new NumberFormatter($locale, NumberFormatter::DECIMAL);
+        $localized = $formatter->format($count);
+        if (is_string($localized)) $number = $localized;
+    }
+    return sprintf(gsk_t($count === 1 ? '%s view' : '%s views'), $number);
+}
+
+function gsk_public_view_count(string $html, array $post = []): string {
+    if (str_contains($html, 'class="jym-public-views"')) return $html;
+    $current = $GLOBALS['gsk_current_public_view_entity'] ?? null;
+    $pdo = $GLOBALS['pdo'] ?? null;
+    if (!is_array($current) || !($pdo instanceof PDO) || !gsk_content_view_settings($pdo)['show_public']) return $html;
+    if (!in_array($current['type'] ?? null, ['article', 'page'], true)
+        || (int)($post['id'] ?? 0) !== $current['id']
+        || ($post['type'] ?? null) !== $current['type']) return $html;
+    $label = gsk_localized_view_count(gsk_content_view_total($pdo, 'post', $current['id']));
+    $icon = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>';
+    return '<div class="jym-public-views" aria-label="' . gsk_e($label) . '">' . $icon . '<span>' . gsk_e($label) . '</span></div>' . $html;
+}
+
+function gsk_can_show_dashboard_views(PDO $pdo, array $context): bool {
+    $actorId = (int)($context['actor_id'] ?? 0);
+    return gsk_content_view_settings($pdo)['show_dashboard']
+        && $actorId > 0 && function_exists('user_can')
+        && user_can($pdo, $actorId, 'plugin.jy-metrics.reports.read');
+}
+
+function gsk_post_list_view_select(string $select, string $where, array $context = []): string {
+    $pdo = $GLOBALS['pdo'] ?? null;
+    if (!($pdo instanceof PDO) || ($context['schema'] ?? null) !== 1
+        || !in_array($context['type'] ?? null, ['article', 'page', 'theme'], true)
+        || !gsk_can_show_dashboard_views($pdo, $context)) return $select;
+    return $select . ', COALESCE((SELECT SUM(gsk_cv.`view_count`) FROM `' . GSK_CONTENT_VIEWS_TABLE . '` gsk_cv WHERE gsk_cv.`entity_kind` = \'post\' AND gsk_cv.`entity_id` = p.id), 0) AS gsk_view_count';
+}
+
+function gsk_admin_content_view_action(mixed $items, array $row, array $context, PDO $pdo): array {
+    if (!is_array($items)) $items = [];
+    if (($context['schema'] ?? null) !== 1
+        || !in_array($context['content_type'] ?? null, ['article', 'page', 'theme'], true)
+        || !gsk_can_show_dashboard_views($pdo, $context)) return $items;
+    $items[] = [
+        'key' => 'jy-metrics.views',
+        'label' => gsk_localized_view_count(max(0, (int)($row['gsk_view_count'] ?? 0))),
+        'icon' => 'eye',
+        'url' => gsk_page_url(''),
+        'title' => gsk_t('Open Jy Metrics dashboard'),
+    ];
+    return $items;
+}
+
+function gsk_category_view_counts(PDO $pdo): array {
+    $pdoKey = spl_object_id($pdo);
+    if (isset($GLOBALS['gsk_category_view_counts'][$pdoKey])) return $GLOBALS['gsk_category_view_counts'][$pdoKey];
+    $counts = [];
+    try {
+        $stmt = $pdo->query('SELECT `entity_id`, SUM(`view_count`) AS `total_views` FROM `' . GSK_CONTENT_VIEWS_TABLE . '` WHERE `entity_kind` = \'category\' GROUP BY `entity_id`');
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) $counts[(int)$row['entity_id']] = max(0, (int)$row['total_views']);
+    } catch (Throwable $e) {
+        $counts = [];
+    }
+    $GLOBALS['gsk_category_view_counts'][$pdoKey] = $counts;
+    return $counts;
+}
+
+function gsk_admin_category_view_action(array $category, array $context, PDO $pdo): void {
+    if (!gsk_can_show_dashboard_views($pdo, $context)) return;
+    $categoryId = (int)($category['id'] ?? 0);
+    if ($categoryId < 1) return;
+    $counts = gsk_category_view_counts($pdo);
+    $label = gsk_localized_view_count((int)($counts[$categoryId] ?? 0));
+    if (($context['can_update'] ?? false) === true) echo '<span class="muted-divider">|</span>';
+    echo '<a class="adam-ubah" href="' . gsk_e(gsk_page_url('')) . '" title="' . gsk_e(gsk_t('Open Jy Metrics dashboard')) . '">'
+        . (function_exists('svg_ico') ? svg_ico('eye') : '') . gsk_e($label) . '</a>';
+}
+
+function gsk_popular_posts(PDO $pdo, int $period, int $limit): array {
+    if (!in_array($period, [7, 30, 365], true)) $period = 30;
+    $limit = max(1, min(20, $limit));
+    $cacheKey = spl_object_id($pdo) . ':' . $period . ':' . $limit;
+    if (isset($GLOBALS['gsk_popular_posts'][$cacheKey])) return $GLOBALS['gsk_popular_posts'][$cacheKey];
+    $startDate = gmdate('Y-m-d', time() - (($period - 1) * 86400));
+    $endDate = gmdate('Y-m-d');
+    try {
+        $sql = 'SELECT p.id, p.title, p.slug, p.created_at, SUM(v.`view_count`) AS view_count
+            FROM posts p
+            INNER JOIN `' . GSK_CONTENT_VIEWS_TABLE . '` v ON v.`entity_kind` = \'post\' AND v.`entity_id` = p.id AND v.`entity_type` = \'article\' AND v.`view_date_utc` BETWEEN :start_date AND :end_date
+            WHERE p.type = \'article\' AND p.status = \'published\' AND p.is_deleted = 0
+            GROUP BY p.id, p.title, p.slug, p.created_at
+            ORDER BY view_count DESC, p.id ASC
+            LIMIT :limit';
+        $stmt = $pdo->prepare($sql);
+        $stmt->bindValue(':start_date', $startDate);
+        $stmt->bindValue(':end_date', $endDate);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $GLOBALS['gsk_popular_posts'][$cacheKey] = $rows;
+        return $rows;
+    } catch (Throwable $e) {
+        error_log('[jy-metrics] Could not load popular posts: ' . $e->getMessage());
+        return [];
+    }
+}
+
+function gsk_render_popular_posts_widget(PDO $pdo, array $config = []): string {
+    $settings = gsk_content_view_settings($pdo);
+    $rows = gsk_popular_posts($pdo, $settings['popular_period'], $settings['popular_limit']);
+    $title = trim((string)($config['title'] ?? gsk_t('Popular Posts')));
+    $html = '<div class="w-box jym-popular-posts">';
+    if ($title !== '') $html .= '<div class="w-title jym-popular-title">' . gsk_e($title) . '</div>';
+    if ($rows === []) return $html . '<p class="jym-popular-empty">' . gsk_e(gsk_t('No popular posts in this period.')) . '</p></div>';
+    $html .= '<ol class="w-recent-list jym-popular-list">';
+    foreach ($rows as $index => $row) {
+        try {
+            $url = function_exists('get_post_permalink') ? get_post_permalink($row) : '/' . rawurlencode((string)($row['slug'] ?? '')) . '/';
+        } catch (Throwable $e) {
+            $url = '/' . rawurlencode((string)($row['slug'] ?? '')) . '/';
+        }
+        $date = (string)($row['created_at'] ?? '');
+        $timestamp = $date !== '' ? strtotime($date) : false;
+        $dateLabel = $date !== '' && function_exists('app_display_date') ? app_display_date($date) : ($timestamp !== false ? date('d M Y', $timestamp) : '');
+        $views = gsk_localized_view_count((int)($row['view_count'] ?? 0));
+        $html .= '<li class="w-recent-item jym-popular-item"><span class="jym-popular-rank" aria-label="' . gsk_e(sprintf(gsk_t('Rank %d'), $index + 1)) . '">' . ($index + 1) . '</span><div class="w-recent-body jym-popular-body">'
+            . '<a class="w-recent-title jym-popular-link" href="' . gsk_e($url) . '">' . gsk_e((string)($row['title'] ?? '')) . '</a>'
+            . '<span class="w-recent-date jym-popular-meta">' . gsk_e(trim($dateLabel . ($dateLabel !== '' ? ' · ' : '') . $views)) . '</span></div></li>';
+    }
+    return $html . '</ol></div>';
+}
+
 // ── Schema initialization ──
+add_action('frontend_entity_viewed', 'gsk_frontend_entity_viewed');
+add_filter('post_content', 'gsk_public_view_count', 20);
+add_filter('post_list_select', 'gsk_post_list_view_select', 10);
+add_filter('admin_content_row_actions', 'gsk_admin_content_view_action', 10);
+add_action('admin_category_row_actions', 'gsk_admin_category_view_action');
+add_filter('sidebar_widget_types', function (array $types): array {
+    $types['jy_metrics_popular_posts'] = [
+        'label' => gsk_t('Popular Posts'),
+        'desc' => gsk_t('Published articles ranked by first-party views using the global Jy Metrics settings.'),
+        'default_config' => ['title' => gsk_t('Popular Posts')],
+    ];
+    return $types;
+});
+add_filter('render_sidebar_widget', function ($html, string $type, array $config, PDO $pdo): string {
+    return $type === 'jy_metrics_popular_posts' ? gsk_render_popular_posts_widget($pdo, $config) : $html;
+}, 10);
+
 add_action('admin_init', function (): void {
     $pdo = $GLOBALS['pdo'] ?? null;
     if (!($pdo instanceof PDO)) return;
@@ -759,6 +1027,10 @@ add_action('plugins_loaded', function (): void {
 add_action('jy_head', function (): void {
     $pdo = $GLOBALS['pdo'] ?? null;
     if (!($pdo instanceof PDO)) return;
+    echo '<style>.jym-popular-item{display:flex;align-items:flex-start;gap:.7rem}.jym-popular-rank{display:grid;flex:0 0 1.7rem;height:1.7rem;place-items:center;border:1px solid currentColor;border-radius:50%;background:rgba(127,127,127,.12);font-size:.75rem;font-weight:700;opacity:.75}.jym-popular-empty{margin:.75rem 0 0;opacity:.72}</style>' . "\n";
+    if (gsk_content_view_settings($pdo)['show_public']) {
+        echo '<style>.jym-public-views{display:flex;align-items:center;gap:.4rem;margin:0 0 1rem;color:inherit;font-size:.9em;opacity:.72}.jym-public-views svg{flex:0 0 auto}</style>' . "\n";
+    }
     $measurementId = gsk_setting($pdo, GSK_MEASUREMENT_ID_KEY);
     $gtmId = gsk_setting($pdo, GSK_GTM_ID_KEY);
     $adsense = gsk_setting($pdo, GSK_ADSENSE_CLIENT_KEY);
@@ -874,6 +1146,8 @@ add_action('plugin_uninstall', function (string $name): void {
         GSK_ADSENSE_CLIENT_KEY, GSK_SITE_VERIFICATION_KEY, GSK_PAGESPEED_API_KEY,
         GSK_CONSENT_MODE_KEY, GSK_CONSENT_REGION_SOURCE_KEY, GSK_PRIVACY_URL_KEY, GSK_PRIVACY_PAGE_LINKED_KEY,
         GSK_CONSENT_ANALYTICS_KEY, GSK_CONSENT_ADVERTISING_KEY, GSK_CONSENT_POLICY_KEY, GSK_I18N_VERSION_KEY,
+        GSK_SHOW_DASHBOARD_VIEWS_KEY, GSK_SHOW_PUBLIC_VIEWS_KEY,
+        GSK_POPULAR_POSTS_PERIOD_KEY, GSK_POPULAR_POSTS_LIMIT_KEY,
     ];
     gsk_disconnect($pdo);
     $placeholders = implode(',', array_fill(0, count($keys), '?'));
@@ -884,5 +1158,12 @@ add_action('plugin_uninstall', function (string $name): void {
     }
     $stmt = $pdo->prepare('DELETE FROM ui_translations WHERE `scope` = ?');
     $stmt->execute([GSK_I18N_SCOPE]);
+    try {
+        $stmt = $pdo->prepare('DELETE FROM sidebar_zone_items WHERE `type` = ?');
+        $stmt->execute(['jy_metrics_popular_posts']);
+    } catch (Throwable $e) {
+        error_log('[jy-metrics] Could not remove Sidebar widgets during uninstall: ' . $e->getMessage());
+    }
     $pdo->exec('DROP TABLE IF EXISTS `' . GSK_CACHE_TABLE . '`');
+    $pdo->exec('DROP TABLE IF EXISTS `' . GSK_CONTENT_VIEWS_TABLE . '`');
 });

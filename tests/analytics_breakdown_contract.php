@@ -3,10 +3,16 @@ declare(strict_types=1);
 
 define('PLUGIN_SYSTEM_LOADED', true);
 $GLOBALS['breakdown_contract_hooks'] = [];
+$GLOBALS['breakdown_contract_filters'] = [];
 
 function add_action(string $hook, callable $callback): void
 {
     $GLOBALS['breakdown_contract_hooks'][$hook][] = $callback;
+}
+
+function add_filter(string $hook, callable $callback, int $priority = 10): void
+{
+    $GLOBALS['breakdown_contract_filters'][$hook][$priority][] = $callback;
 }
 
 function settings_get(PDO $pdo, string $key, mixed $default = ''): mixed
@@ -66,7 +72,7 @@ $check(str_contains($adminSource, "var pageSize = 7")
     && str_contains($adminSource, "dimension === 'brand' && data.rows.length > pageSize")
     && str_contains($adminSource, 'gsk-breakdown-value'),
     'brand lists paginate compactly while every row shows count and percentage');
-$check(str_contains($pluginSource, "GSK_I18N_VERSION_KEY) === '10'")
+$check(str_contains($pluginSource, "GSK_I18N_VERSION_KEY) === '12'")
     && str_contains($pluginSource, "'Traffic breakdown' => 'Rincian traffic'")
     && str_contains($pluginSource, "'Mobile and tablet sessions grouped by device brand.'"),
     'traffic breakdown interface strings are registered for Indonesian localization');

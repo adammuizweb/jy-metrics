@@ -398,6 +398,7 @@ html.theme-dark .gsk-bar-track { background: #0a111a; }
   var unknownLocationLabel = <?= json_encode(gsk_t('Unknown location')) ?>;
   var unknownLocationDescription = <?= json_encode(gsk_t('Google Analytics could not determine this visitor location. It may occur when location data is unavailable, consent limits data collection, or the visit lacks a usable IP address.')) ?>;
   var scDataDelayTemplate = <?= json_encode(gsk_t('Search Console data is usually available 2-3 days later. Latest available: {date}.')) ?>;
+  var searchQueriesLoadError = <?= json_encode(gsk_t('Could not load search queries')) ?>;
   var breakdownText = {
     noData: <?= json_encode(gsk_t('No data')) ?>,
     loadError: <?= json_encode(gsk_t('Could not load traffic breakdown')) ?>,
@@ -1056,7 +1057,12 @@ html.theme-dark .gsk-bar-track { background: #0a111a; }
     var base = scEndpoint + '&siteUrl=' + encodeURIComponent(siteUrl) + d + '&csrf_token=' + encodeURIComponent(csrf);
     gskFetch(base + '&action=stats', force).then(function(j){
       if (j.stale) return;
-      if (gskIsCurrent(days, generation)) gskRenderQueryTable('gsk-sc-queries', j.ok ? j.queries : []);
+      if (!gskIsCurrent(days, generation)) return;
+      if (j.ok) {
+        gskRenderQueryTable('gsk-sc-queries', j.queries || []);
+      } else {
+        document.getElementById('gsk-sc-queries').innerHTML = '<p class="gsk-meta">' + gskEscape(j.error || searchQueriesLoadError) + '</p>';
+      }
     });
     gskFetch(base + '&action=trend', force).then(function(j){
       if (j.stale || !gskIsCurrent(days, generation)) return;

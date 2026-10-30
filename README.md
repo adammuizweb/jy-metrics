@@ -19,10 +19,12 @@ at once.
 - Lazy-loaded dashboard sections with stale-request protection
 - Cached API responses to reduce external requests
 - Optional public analytics, tag management, and advertising snippets
+- First-party daily content-view totals for Articles, Pages, Theme Content, and Categories
+- Optional dashboard and public all-time counts, plus a Popular Posts Sidebar widget
 
 ## Requirements
 
-- Jyavani CMS 2.3.74 or newer
+- Jyavani CMS 2.3.193 or newer
 - PHP 8.1 or newer
 - PHP extensions: PDO, JSON, and cURL
 - An OAuth web application from a supported analytics provider
@@ -51,6 +53,20 @@ be entered manually when automatic discovery is unavailable.
 
 Page experience reports require a separate API key. Restrict that key to the
 required service and to the server or site that uses it.
+
+### Content Views
+
+Jy Metrics records one view per resolved entity and public GET request in a UTC
+daily aggregate. It stores only the content kind, content ID, bounded content
+type, UTC date, and count. It does not store visitor identifiers, cookies, IP
+addresses, or raw event rows. Collection remains active while the plugin is
+active and is independent of Google cookie consent.
+
+The **Content Views** settings card controls visibility only. Dashboard row
+counts and public single Article/Page counts are disabled by default. The same
+card sets the global 7, 30, or 365-day period and 1-20 item limit used by the
+**Jy Metrics Popular Posts** Sidebar widget. Each widget retains the standard
+editable Sidebar title; period and item limit remain global.
 
 ## Permissions
 
@@ -123,6 +139,12 @@ Validate the manifest:
 
 ```bash
 php -r 'json_decode(file_get_contents("plugin.json"), true, 512, JSON_THROW_ON_ERROR);'
+```
+
+Run all focused contract tests:
+
+```bash
+for test in tests/*.php; do php "$test" || exit 1; done
 ```
 
 ## Independence

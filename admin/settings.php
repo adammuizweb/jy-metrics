@@ -30,9 +30,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ? (isset($_POST['consent_advertising']) ? '1' : '0')
             : ($savedConsentCategories['advertising'] ? '1' : '0');
         $privacyUrlInput = trim((string)($_POST['privacy_url'] ?? ''));
+        $contentViewSettingsPresent = (string)($_POST['content_view_settings_present'] ?? '') === '1';
+        if ($contentViewSettingsPresent) {
+            $contentViewInput = gsk_normalize_content_view_input($_POST);
+        } else {
+            $savedContentViews = gsk_content_view_settings($pdo);
+            $contentViewInput = [
+                'show_dashboard' => $savedContentViews['show_dashboard'] ? '1' : '0',
+                'show_public' => $savedContentViews['show_public'] ? '1' : '0',
+                'popular_period' => (string)$savedContentViews['popular_period'],
+                'popular_limit' => (string)$savedContentViews['popular_limit'],
+            ];
+        }
         if (!in_array($consentModeInput, ['off', 'choices'], true)
-            || !gsk_valid_privacy_url($privacyUrlInput)) {
-            $message = 'Invalid privacy consent settings.';
+            || !gsk_valid_privacy_url($privacyUrlInput)
+            || $contentViewInput === null) {
+            $message = gsk_t('Invalid privacy consent or content view settings.');
             $messageType = 'error';
         } else {
             $submittedConsentCategories = [
@@ -54,6 +67,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 gsk_save_setting($pdo, GSK_CONSENT_POLICY_KEY, hash('sha256', random_bytes(32)));
             }
             gsk_save_setting($pdo, GSK_PRIVACY_URL_KEY, $privacyUrlInput);
+            gsk_save_setting($pdo, GSK_SHOW_DASHBOARD_VIEWS_KEY, $contentViewInput['show_dashboard']);
+            gsk_save_setting($pdo, GSK_SHOW_PUBLIC_VIEWS_KEY, $contentViewInput['show_public']);
+            gsk_save_setting($pdo, GSK_POPULAR_POSTS_PERIOD_KEY, $contentViewInput['popular_period']);
+            gsk_save_setting($pdo, GSK_POPULAR_POSTS_LIMIT_KEY, $contentViewInput['popular_limit']);
             $message = 'Settings saved.';
             $messageType = 'success';
         }
@@ -82,6 +99,15 @@ if (isset($consentAnalyticsInput, $consentAdvertisingInput)) {
     ];
 }
 $privacyUrl = $settings[GSK_PRIVACY_URL_KEY] ?? '';
+$contentViews = gsk_content_view_settings($pdo);
+if (isset($contentViewInput) && is_array($contentViewInput)) {
+    $contentViews = [
+        'show_dashboard' => $contentViewInput['show_dashboard'] === '1',
+        'show_public' => $contentViewInput['show_public'] === '1',
+        'popular_period' => (int)$contentViewInput['popular_period'],
+        'popular_limit' => (int)$contentViewInput['popular_limit'],
+    ];
+}
 $consentLabels = ['off' => 'Disabled', 'choices' => 'Global privacy choices'];
 $hasClientId = ($settings[GSK_CLIENT_ID_KEY] ?? '') !== '';
 $hasClientSecret = ($settings[GSK_CLIENT_SECRET_KEY] ?? '') !== '';
@@ -171,6 +197,7 @@ function gskSettingsHelp(string $id, string $description): string {
   <form method="post" action="<?= gsk_e(gsk_page_url('settings')) ?>" class="gsk-form">
     <input type="hidden" name="csrf_token" value="<?= gsk_e($csrf) ?>">
     <input type="hidden" name="consent_categories_present" value="1">
+    <input type="hidden" name="content_view_settings_present" value="1">
 
     <div class="gsk-card gsk-card--collapsible" id="gsk-oauth-credentials" data-gsk-card>
         <button type="button" class="gsk-card__head gsk-card__toggle" aria-expanded="<?= $hasOAuthCredentials ? 'false' : 'true' ?>"><span class="gsk-card__title">OAuth credentials <span class="gsk-help" title="Private credentials from the Google Cloud project created for this site.">?</span></span><span class="gsk-card__summary"><?= $hasClientId ? 'Client ID ready' : 'Client ID missing' ?> · <?= $hasClientSecret ? 'secret ready' : 'secret missing' ?></span></button>
@@ -192,6 +219,30 @@ function gskSettingsHelp(string $id, string $description): string {
           <div class="gsk-copy-row">
             <input type="text" id="gsk-redirect-uri" class="inpud" value="<?= gsk_e($redirectUri) ?>" readonly onclick="this.select()">
             <button type="button" class="adam-button adam-button--secondary" onclick="gskCopySetting('gsk-redirect-uri')">Copy</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="gsk-card gsk-card--collapsible" data-gsk-card>
+      <button type="button" class="gsk-card__head gsk-card__toggle" aria-expanded="true"><span class="gsk-card__title"><?= gsk_e(gsk_t('Content Views')) ?></span><span class="gsk-card__summary"><?= gsk_e(sprintf(gsk_t('First-party aggregate · visibility %s'), gsk_t($contentViews['show_dashboard'] || $contentViews['show_public'] ? 'enabled' : 'disabled'))) ?></span></button>
+      <div class="gsk-card__body" data-gsk-card-body>
+        <p class="gsk-meta"><?= gsk_e(gsk_t('Jy Metrics always collects anonymous daily totals for published content while the plugin is active. The aggregate contains only content identity, UTC date, and view count; it uses no visitor identifier or cookie and is independent of Google cookie consent. These controls affect visibility, not collection.')) ?></p>
+        <div class="gsk-confirm-row">
+          <label class="gsk-confirm"><input type="checkbox" name="show_dashboard_views" value="1" <?= $contentViews['show_dashboard'] ? 'checked' : '' ?>><span><strong><?= gsk_e(gsk_t('Show dashboard view counts')) ?></strong><small><?= gsk_e(gsk_t('Add all-time counts to Article, Page, Theme Content, and Category row actions for report readers.')) ?></small></span></label>
+          <label class="gsk-confirm"><input type="checkbox" name="show_public_views" value="1" <?= $contentViews['show_public'] ? 'checked' : '' ?>><span><strong><?= gsk_e(gsk_t('Show public view count on single Article/Page')) ?></strong><small><?= gsk_e(gsk_t('Prepend an accessible all-time count to single Article and Page content only.')) ?></small></span></label>
+        </div>
+        <div class="gsk-field-row">
+          <div class="gsk-field">
+            <label class="gsk-field__label" for="gsk-popular-period"><?= gsk_e(gsk_t('Popular Posts period')) ?></label>
+            <select id="gsk-popular-period" name="popular_posts_period" class="inpud">
+              <?php foreach ([7, 30, 365] as $period): ?><option value="<?= $period ?>" <?= $contentViews['popular_period'] === $period ? 'selected' : '' ?>><?= gsk_e(sprintf(gsk_t('%d days'), $period)) ?></option><?php endforeach; ?>
+            </select>
+          </div>
+          <div class="gsk-field">
+            <label class="gsk-field__label" for="gsk-popular-limit"><?= gsk_e(gsk_t('Popular Posts item limit')) ?></label>
+            <input type="number" id="gsk-popular-limit" name="popular_posts_limit" class="inpud" min="1" max="20" value="<?= (int)$contentViews['popular_limit'] ?>">
+            <span class="gsk-field__hint"><?= gsk_e(gsk_t('Global values used by every Jy Metrics Popular Posts Sidebar widget. Period and item limit are not configured per widget.')) ?></span>
           </div>
         </div>
       </div>
