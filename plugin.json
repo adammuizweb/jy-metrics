@@ -1,6 +1,6 @@
 {
     "name": "jy-metrics",
-    "version": "2.11.0",
+    "version": "2.11.1",
     "title": "Jy Metrics",
     "description": "Analytics, search performance, and page experience reports for Jyavani CMS.",
     "author": "Adam Muiz",
@@ -34,7 +34,7 @@
         }
     ],
     "requires": {
-        "jyavani": ">=2.3.193",
+        "jyavani": ">=2.3.194",
         "php": ">=8.1",
         "extensions": [
             "pdo",

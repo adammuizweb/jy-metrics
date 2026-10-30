@@ -38,8 +38,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $contentViewInput = [
                 'show_dashboard' => $savedContentViews['show_dashboard'] ? '1' : '0',
                 'show_public' => $savedContentViews['show_public'] ? '1' : '0',
-                'popular_period' => (string)$savedContentViews['popular_period'],
-                'popular_limit' => (string)$savedContentViews['popular_limit'],
             ];
         }
         if (!in_array($consentModeInput, ['off', 'choices'], true)
@@ -69,8 +67,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             gsk_save_setting($pdo, GSK_PRIVACY_URL_KEY, $privacyUrlInput);
             gsk_save_setting($pdo, GSK_SHOW_DASHBOARD_VIEWS_KEY, $contentViewInput['show_dashboard']);
             gsk_save_setting($pdo, GSK_SHOW_PUBLIC_VIEWS_KEY, $contentViewInput['show_public']);
-            gsk_save_setting($pdo, GSK_POPULAR_POSTS_PERIOD_KEY, $contentViewInput['popular_period']);
-            gsk_save_setting($pdo, GSK_POPULAR_POSTS_LIMIT_KEY, $contentViewInput['popular_limit']);
             $message = 'Settings saved.';
             $messageType = 'success';
         }
@@ -104,8 +100,6 @@ if (isset($contentViewInput) && is_array($contentViewInput)) {
     $contentViews = [
         'show_dashboard' => $contentViewInput['show_dashboard'] === '1',
         'show_public' => $contentViewInput['show_public'] === '1',
-        'popular_period' => (int)$contentViewInput['popular_period'],
-        'popular_limit' => (int)$contentViewInput['popular_limit'],
     ];
 }
 $consentLabels = ['off' => 'Disabled', 'choices' => 'Global privacy choices'];
@@ -232,19 +226,7 @@ function gskSettingsHelp(string $id, string $description): string {
           <label class="gsk-confirm"><input type="checkbox" name="show_dashboard_views" value="1" <?= $contentViews['show_dashboard'] ? 'checked' : '' ?>><span><strong><?= gsk_e(gsk_t('Show dashboard view counts')) ?></strong><small><?= gsk_e(gsk_t('Add all-time counts to Article, Page, Theme Content, and Category row actions for report readers.')) ?></small></span></label>
           <label class="gsk-confirm"><input type="checkbox" name="show_public_views" value="1" <?= $contentViews['show_public'] ? 'checked' : '' ?>><span><strong><?= gsk_e(gsk_t('Show public view count on single Article/Page')) ?></strong><small><?= gsk_e(gsk_t('Prepend an accessible all-time count to single Article and Page content only.')) ?></small></span></label>
         </div>
-        <div class="gsk-field-row">
-          <div class="gsk-field">
-            <label class="gsk-field__label" for="gsk-popular-period"><?= gsk_e(gsk_t('Popular Posts period')) ?></label>
-            <select id="gsk-popular-period" name="popular_posts_period" class="inpud">
-              <?php foreach ([7, 30, 365] as $period): ?><option value="<?= $period ?>" <?= $contentViews['popular_period'] === $period ? 'selected' : '' ?>><?= gsk_e(sprintf(gsk_t('%d days'), $period)) ?></option><?php endforeach; ?>
-            </select>
-          </div>
-          <div class="gsk-field">
-            <label class="gsk-field__label" for="gsk-popular-limit"><?= gsk_e(gsk_t('Popular Posts item limit')) ?></label>
-            <input type="number" id="gsk-popular-limit" name="popular_posts_limit" class="inpud" min="1" max="20" value="<?= (int)$contentViews['popular_limit'] ?>">
-            <span class="gsk-field__hint"><?= gsk_e(gsk_t('Global values used by every Jy Metrics Popular Posts Sidebar widget. Period and item limit are not configured per widget.')) ?></span>
-          </div>
-        </div>
+        <p class="gsk-meta"><?= gsk_e(gsk_t('Configure each Popular Posts widget in Sidebar Settings.')) ?> <a href="<?= gsk_e(rtrim((string)ADMIN_BASE_PATH, '/') . '/?page=admin/sidebar/index') ?>"><?= gsk_e(gsk_t('Open Sidebar Settings')) ?></a></p>
       </div>
     </div>
 

@@ -110,14 +110,9 @@ function gsk_content_view_settings(PDO $pdo): array {
 }
 
 function gsk_normalize_content_view_input(array $input): ?array {
-    $period = filter_var($input['popular_posts_period'] ?? null, FILTER_VALIDATE_INT);
-    $limit = filter_var($input['popular_posts_limit'] ?? null, FILTER_VALIDATE_INT);
-    if (!in_array($period, [7, 30, 365], true) || $limit === false || $limit < 1 || $limit > 20) return null;
     return [
         'show_dashboard' => isset($input['show_dashboard_views']) ? '1' : '0',
         'show_public' => isset($input['show_public_views']) ? '1' : '0',
-        'popular_period' => (string)$period,
-        'popular_limit' => (string)$limit,
     ];
 }
 
@@ -163,7 +158,7 @@ function gsk_help_tooltip(string $id, string $label, string $description): strin
 }
 
 function gsk_register_translations(PDO $pdo): void {
-    if (gsk_setting($pdo, GSK_I18N_VERSION_KEY) === '12') return;
+    if (gsk_setting($pdo, GSK_I18N_VERSION_KEY) === '13') return;
 
     $translations = [
         'Active users' => 'Pengguna aktif',
@@ -266,6 +261,14 @@ function gsk_register_translations(PDO $pdo): void {
         'Global values used by every Jy Metrics Popular Posts Sidebar widget. Period and item limit are not configured per widget.' => 'Nilai global yang digunakan oleh setiap widget Sidebar Artikel Populer Jy Metrics. Periode dan batas item tidak diatur per widget.',
         'Invalid privacy consent or content view settings.' => 'Pengaturan persetujuan privasi atau tampilan konten tidak valid.',
         'Could not load search queries' => 'Tidak dapat memuat kueri penelusuran',
+        'Published articles ranked by first-party views using each widget\'s period and item limit.' => 'Artikel terbit yang diurutkan berdasarkan tampilan pihak pertama menggunakan periode dan batas item setiap widget.',
+        'Popular period' => 'Periode populer',
+        'Today' => 'Hari ini',
+        'Monthly (30 days)' => 'Bulanan (30 hari)',
+        'Yearly (365 days)' => 'Tahunan (365 hari)',
+        'Item limit' => 'Batas item',
+        'Configure each Popular Posts widget in Sidebar Settings.' => 'Atur setiap widget Artikel Populer di Pengaturan Sidebar.',
+        'Open Sidebar Settings' => 'Buka Pengaturan Sidebar',
     ];
 
     try {
@@ -273,7 +276,7 @@ function gsk_register_translations(PDO $pdo): void {
         foreach ($translations as $source => $value) {
             $stmt->execute([GSK_I18N_SCOPE, $source, $value, 'id']);
         }
-        gsk_save_setting($pdo, GSK_I18N_VERSION_KEY, '12');
+        gsk_save_setting($pdo, GSK_I18N_VERSION_KEY, '13');
     } catch (Throwable $e) {
         error_log('[jy-metrics] Could not register translations: ' . $e->getMessage());
     }
@@ -858,6 +861,18 @@ function gsk_content_view_total(PDO $pdo, string $kind, int $entityId): int {
     return $total;
 }
 
+function gsk_content_views_table_ready(PDO $pdo): bool {
+    $key = spl_object_id($pdo);
+    if (($GLOBALS['gsk_content_views_table_ready'][$key] ?? false) === true) return true;
+    try {
+        $pdo->query('SELECT 1 FROM `' . GSK_CONTENT_VIEWS_TABLE . '` WHERE 1 = 0');
+        $GLOBALS['gsk_content_views_table_ready'][$key] = true;
+        return true;
+    } catch (Throwable $e) {
+        return false;
+    }
+}
+
 function gsk_localized_view_count(int $count): string {
     $count = max(0, $count);
     $locale = function_exists('get_locale') ? get_locale() : 'en';
@@ -888,6 +903,7 @@ function gsk_public_view_count(string $html, array $post = []): string {
 function gsk_can_show_dashboard_views(PDO $pdo, array $context): bool {
     $actorId = (int)($context['actor_id'] ?? 0);
     return gsk_content_view_settings($pdo)['show_dashboard']
+        && gsk_content_views_table_ready($pdo)
         && $actorId > 0 && function_exists('user_can')
         && user_can($pdo, $actorId, 'plugin.jy-metrics.reports.read');
 }
@@ -941,7 +957,7 @@ function gsk_admin_category_view_action(array $category, array $context, PDO $pd
 }
 
 function gsk_popular_posts(PDO $pdo, int $period, int $limit): array {
-    if (!in_array($period, [7, 30, 365], true)) $period = 30;
+    if (!in_array($period, [1, 7, 30, 365], true)) $period = 30;
     $limit = max(1, min(20, $limit));
     $cacheKey = spl_object_id($pdo) . ':' . $period . ':' . $limit;
     if (isset($GLOBALS['gsk_popular_posts'][$cacheKey])) return $GLOBALS['gsk_popular_posts'][$cacheKey];
@@ -971,7 +987,11 @@ function gsk_popular_posts(PDO $pdo, int $period, int $limit): array {
 
 function gsk_render_popular_posts_widget(PDO $pdo, array $config = []): string {
     $settings = gsk_content_view_settings($pdo);
-    $rows = gsk_popular_posts($pdo, $settings['popular_period'], $settings['popular_limit']);
+    $period = filter_var($config['period'] ?? $settings['popular_period'], FILTER_VALIDATE_INT);
+    if ($period === false || !in_array($period, [1, 7, 30, 365], true)) $period = 30;
+    $limit = filter_var($config['limit'] ?? $settings['popular_limit'], FILTER_VALIDATE_INT);
+    if ($limit === false || $limit < 1 || $limit > 20) $limit = 5;
+    $rows = gsk_popular_posts($pdo, $period, $limit);
     $title = trim((string)($config['title'] ?? gsk_t('Popular Posts')));
     $html = '<div class="w-box jym-popular-posts">';
     if ($title !== '') $html .= '<div class="w-title jym-popular-title">' . gsk_e($title) . '</div>';
@@ -1003,8 +1023,20 @@ add_action('admin_category_row_actions', 'gsk_admin_category_view_action');
 add_filter('sidebar_widget_types', function (array $types): array {
     $types['jy_metrics_popular_posts'] = [
         'label' => gsk_t('Popular Posts'),
-        'desc' => gsk_t('Published articles ranked by first-party views using the global Jy Metrics settings.'),
-        'default_config' => ['title' => gsk_t('Popular Posts')],
+        'desc' => gsk_t('Published articles ranked by first-party views using each widget\'s period and item limit.'),
+        'default_config' => ['title' => gsk_t('Popular Posts'), 'period' => '30', 'limit' => 5],
+        'config_fields' => [
+            'period' => [
+                'label' => gsk_t('Popular period'),
+                'control' => 'select',
+                'options' => [
+                    '1' => gsk_t('Today'),
+                    '30' => gsk_t('Monthly (30 days)'),
+                    '365' => gsk_t('Yearly (365 days)'),
+                ],
+            ],
+            'limit' => ['label' => gsk_t('Item limit'), 'control' => 'number', 'min' => 1, 'max' => 20],
+        ],
     ];
     return $types;
 });

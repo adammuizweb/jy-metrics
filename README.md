@@ -63,10 +63,10 @@ addresses, or raw event rows. Collection remains active while the plugin is
 active and is independent of Google cookie consent.
 
 The **Content Views** settings card controls visibility only. Dashboard row
-counts and public single Article/Page counts are disabled by default. The same
-card sets the global 7, 30, or 365-day period and 1-20 item limit used by the
-**Jy Metrics Popular Posts** Sidebar widget. Each widget retains the standard
-editable Sidebar title; period and item limit remain global.
+counts and public single Article/Page counts are disabled by default. Configure
+each **Jy Metrics Popular Posts** instance in Sidebar Settings with its own
+Today, 30-day, or 365-day period and 1-20 item limit, so multiple independently
+ranked widgets can be used at once.
 
 ## Permissions
 

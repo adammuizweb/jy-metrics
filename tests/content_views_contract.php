@@ -60,11 +60,8 @@ $GLOBALS['gsk_test_settings'][GSK_POPULAR_POSTS_LIMIT_KEY] = '99';
 $check(gsk_content_view_settings($pdo)['popular_period'] === 30 && gsk_content_view_settings($pdo)['popular_limit'] === 5, 'invalid persisted widget values normalize to defaults');
 $GLOBALS['gsk_test_settings'] = [];
 $check(gsk_normalize_content_view_input(['popular_posts_period' => '7', 'popular_posts_limit' => '20', 'show_public_views' => '1']) === [
-    'show_dashboard' => '0', 'show_public' => '1', 'popular_period' => '7', 'popular_limit' => '20',
-], 'valid content view settings normalize to persisted strings');
-$check(gsk_normalize_content_view_input(['popular_posts_period' => '8', 'popular_posts_limit' => '5']) === null
-    && gsk_normalize_content_view_input(['popular_posts_period' => '30', 'popular_posts_limit' => '21']) === null,
-    'invalid periods and limits fail validation');
+    'show_dashboard' => '0', 'show_public' => '1',
+], 'content view settings normalize visibility without owning Sidebar widget configuration');
 
 $validContext = [
     'schema' => 1, 'route' => 'single.post', 'status' => 'published', 'is_public' => true,
@@ -80,6 +77,11 @@ $check(count($callbacks($GLOBALS['gsk_test_actions'], 'frontend_entity_viewed'))
 $listener = $callbacks($GLOBALS['gsk_test_actions'], 'frontend_entity_viewed')[0];
 $listener('malformed', null, $pdo);
 $check(!isset($GLOBALS['gsk_content_views_recorded']), 'registered lifecycle listener ignores non-array payloads without recording');
+$GLOBALS['gsk_test_settings'][GSK_SHOW_DASHBOARD_VIEWS_KEY] = '1';
+$check(gsk_post_list_view_select('', '', ['schema' => 1, 'type' => 'article', 'actor_id' => 7]) === ''
+    && gsk_admin_content_view_action([], [], ['schema' => 1, 'content_type' => 'article', 'actor_id' => 7], $pdo) === [],
+    'missing content-view schema fails closed without breaking dashboard content lists');
+$GLOBALS['gsk_test_settings'] = [];
 
 $pdo->exec('CREATE TABLE jy_metrics_content_views_daily (entity_kind TEXT, entity_id INTEGER, view_date_utc TEXT, entity_type TEXT, view_count INTEGER)');
 $pdo->exec("INSERT INTO jy_metrics_content_views_daily VALUES ('post', 42, '2026-10-30', 'article', 1234)");
@@ -95,21 +97,26 @@ $check(gsk_public_view_count('<p>Theme</p>', ['id' => 42, 'type' => 'theme']) ==
 $pdo->exec('CREATE TABLE posts (id INTEGER PRIMARY KEY, title TEXT, slug TEXT, created_at TEXT, type TEXT, status TEXT, is_deleted INTEGER)');
 $pdo->exec("INSERT INTO posts VALUES (2, '<Popular>', 'popular', '2026-10-29', 'article', 'published', 0)");
 $pdo->exec("INSERT INTO posts VALUES (3, 'Draft', 'draft', '2026-10-29', 'article', 'draft', 0)");
+$pdo->exec("INSERT INTO posts VALUES (4, 'Older popular', 'older', '2026-10-20', 'article', 'published', 0)");
 $pdo->exec("INSERT INTO jy_metrics_content_views_daily VALUES ('post', 2, '" . gmdate('Y-m-d') . "', 'article', 9)");
 $pdo->exec("INSERT INTO jy_metrics_content_views_daily VALUES ('post', 3, '" . gmdate('Y-m-d') . "', 'article', 99)");
+$pdo->exec("INSERT INTO jy_metrics_content_views_daily VALUES ('post', 4, '" . gmdate('Y-m-d', time() - 432000) . "', 'article', 99)");
 $GLOBALS['gsk_test_settings'][GSK_POPULAR_POSTS_PERIOD_KEY] = '7';
-$GLOBALS['gsk_test_settings'][GSK_POPULAR_POSTS_LIMIT_KEY] = '1';
-$widget = gsk_render_popular_posts_widget($pdo, ['title' => '<Most read>']);
+$GLOBALS['gsk_test_settings'][GSK_POPULAR_POSTS_LIMIT_KEY] = '20';
+$widget = gsk_render_popular_posts_widget($pdo, ['title' => '<Most read>', 'period' => '1', 'limit' => 1]);
 $check(str_contains($widget, 'w-box') && str_contains($widget, 'w-title') && str_contains($widget, 'w-recent-list')
     && str_contains($widget, 'w-recent-item') && str_contains($widget, 'w-recent-title') && str_contains($widget, 'w-recent-date')
     && str_contains($widget, 'w-recent-body') && str_contains($widget, 'jym-popular-rank')
-    && str_contains($widget, '&lt;Most read&gt;') && str_contains($widget, '&lt;Popular&gt;') && !str_contains($widget, '>Draft<'),
-    'Popular Posts widget uses its custom title and established classes, escapes markup, and includes only published Articles');
+    && str_contains($widget, '&lt;Most read&gt;') && str_contains($widget, '&lt;Popular&gt;')
+    && !str_contains($widget, '>Draft<') && !str_contains($widget, '>Older popular<'),
+    'Popular Posts widget uses per-instance daily period and limit, established classes, escaped markup, and published Articles only');
 $widgetTypes = [];
 foreach ($callbacks($GLOBALS['gsk_test_filters'], 'sidebar_widget_types') as $callback) $widgetTypes = $callback($widgetTypes);
 $check(isset($widgetTypes['jy_metrics_popular_posts'])
-    && ($widgetTypes['jy_metrics_popular_posts']['default_config']['title'] ?? '') === 'Popular Posts',
-    'Popular Posts widget type keeps the standard editable Sidebar title');
+    && ($widgetTypes['jy_metrics_popular_posts']['default_config'] ?? null) === ['title' => 'Popular Posts', 'period' => '30', 'limit' => 5]
+    && array_keys($widgetTypes['jy_metrics_popular_posts']['config_fields']['period']['options'] ?? []) === [1, 30, 365]
+    && ($widgetTypes['jy_metrics_popular_posts']['config_fields']['limit']['max'] ?? null) === 20,
+    'Popular Posts exposes per-widget daily, monthly, yearly, and item-limit controls to Core Sidebar Settings');
 
 $GLOBALS['gsk_test_settings'][GSK_SHOW_DASHBOARD_VIEWS_KEY] = '1';
 $select = gsk_post_list_view_select('', '', ['schema' => 1, 'type' => 'article', 'actor_id' => 7]);
@@ -124,7 +131,7 @@ $pluginSource = (string)file_get_contents($root . '/plugin.php');
 $manifest = json_decode((string)file_get_contents($root . '/plugin.json'), true, 512, JSON_THROW_ON_ERROR);
 $migration = (string)file_get_contents($root . '/migrations/0001-content-views.sql');
 $settingsSource = (string)file_get_contents($root . '/admin/settings.php');
-$check(($manifest['version'] ?? '') === '2.11.0' && ($manifest['requires']['jyavani'] ?? '') === '>=2.3.193', 'manifest version and Core requirement are updated');
+$check(($manifest['version'] ?? '') === '2.11.1' && ($manifest['requires']['jyavani'] ?? '') === '>=2.3.194', 'manifest version and Core requirement are updated');
 $check(str_contains($migration, 'jy_metrics_content_views_daily') && str_contains($migration, "ENUM('post', 'category')")
     && str_contains($migration, 'PRIMARY KEY (`entity_kind`, `entity_id`, `view_date_utc`)')
     && str_contains($migration, '`entity_type` VARCHAR(16)') && str_contains($migration, '`view_count` BIGINT UNSIGNED')
@@ -135,8 +142,11 @@ $check(str_contains($pluginSource, "ON DUPLICATE KEY UPDATE `entity_type` = VALU
     && str_contains($settingsSource, 'These controls affect visibility, not collection.'),
     'atomic aggregation, complete data and widget uninstall, and consent-independent collection are explicit');
 $check(str_contains($settingsSource, 'content_view_settings_present')
-    && str_contains($settingsSource, '$savedContentViews = gsk_content_view_settings($pdo);'),
-    'stale pre-upgrade settings forms retain existing content-view settings');
+    && str_contains($settingsSource, '$savedContentViews = gsk_content_view_settings($pdo);')
+    && !str_contains($settingsSource, 'name="popular_posts_period"')
+    && !str_contains($settingsSource, 'name="popular_posts_limit"')
+    && str_contains($settingsSource, '?page=admin/sidebar/index'),
+    'plugin settings retain visibility while directing per-instance Popular Posts configuration to Sidebar Settings');
 
 echo $failures === 0 ? 'RESULT: ALL PASS' . PHP_EOL : "RESULT: {$failures} FAILURE(S)" . PHP_EOL;
 exit($failures === 0 ? 0 : 1);
