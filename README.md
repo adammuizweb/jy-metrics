@@ -24,7 +24,7 @@ at once.
 
 ## Requirements
 
-- Jyavani CMS 2.3.193 or newer
+- Jyavani CMS 2.3.194 or newer
 - PHP 8.1 or newer
 - PHP extensions: PDO, JSON, and cURL
 - An OAuth web application from a supported analytics provider
