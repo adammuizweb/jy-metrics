@@ -158,7 +158,7 @@ function gsk_help_tooltip(string $id, string $label, string $description): strin
 }
 
 function gsk_register_translations(PDO $pdo): void {
-    if (gsk_setting($pdo, GSK_I18N_VERSION_KEY) === '13') return;
+    if (gsk_setting($pdo, GSK_I18N_VERSION_KEY) === '14') return;
 
     $translations = [
         'Active users' => 'Pengguna aktif',
@@ -250,7 +250,7 @@ function gsk_register_translations(PDO $pdo): void {
         'First-party aggregate · visibility %s' => 'Agregat pihak pertama · visibilitas %s',
         'enabled' => 'aktif',
         'disabled' => 'nonaktif',
-        'Jy Metrics always collects anonymous daily totals for published content while the plugin is active. The aggregate contains only content identity, UTC date, and view count; it uses no visitor identifier or cookie and is independent of Google cookie consent. These controls affect visibility, not collection.' => 'Jy Metrics selalu mengumpulkan total harian anonim untuk konten terbit selama plugin aktif. Agregat hanya berisi identitas konten, tanggal UTC, dan jumlah tampilan; tanpa identitas pengunjung atau cookie dan tidak bergantung pada persetujuan cookie Google. Kontrol ini mengatur visibilitas, bukan pengumpulan.',
+        'Jy Metrics always collects anonymous daily totals for published content while the plugin is active. The aggregate contains only content identity, bounded content locale, UTC date, and view count; it uses no visitor identifier or cookie and is independent of Google cookie consent. These controls affect visibility, not collection.' => 'Jy Metrics selalu mengumpulkan total harian anonim untuk konten terbit selama plugin aktif. Agregat hanya berisi identitas konten, locale konten terbatas, tanggal UTC, dan jumlah tampilan; tanpa identitas pengunjung atau cookie dan tidak bergantung pada persetujuan cookie Google. Kontrol ini mengatur visibilitas, bukan pengumpulan.',
         'Show dashboard view counts' => 'Tampilkan jumlah tampilan di dasbor',
         'Add all-time counts to Article, Page, Theme Content, and Category row actions for report readers.' => 'Tambahkan jumlah sepanjang waktu ke tindakan baris Artikel, Halaman, Konten Tema, dan Kategori untuk pembaca laporan.',
         'Show public view count on single Article/Page' => 'Tampilkan jumlah tampilan publik pada Artikel/Halaman tunggal',
@@ -270,13 +270,35 @@ function gsk_register_translations(PDO $pdo): void {
         'Configure each Popular Posts widget in Sidebar Settings.' => 'Atur setiap widget Artikel Populer di Pengaturan Sidebar.',
         'Open Sidebar Settings' => 'Buka Pengaturan Sidebar',
     ];
+    $germanTranslations = [
+        '%s view' => '%s Aufruf',
+        '%s views' => '%s Aufrufe',
+        'Popular Posts' => 'Beliebte Beiträge',
+        'No popular posts in this period.' => 'Keine beliebten Beiträge in diesem Zeitraum.',
+        'Rank %d' => 'Rang %d',
+        'Popular Posts period' => 'Zeitraum beliebter Beiträge',
+        '%d days' => '%d Tage',
+        'Popular Posts item limit' => 'Anzahl beliebter Beiträge',
+        'Published articles ranked by first-party views using each widget\'s period and item limit.' => 'Veröffentlichte Artikel, sortiert nach eigenen Aufrufen im Zeitraum und mit dem Beitragslimit des jeweiligen Widgets.',
+        'Popular period' => 'Beliebter Zeitraum',
+        'Today' => 'Heute',
+        'Monthly (30 days)' => 'Monatlich (30 Tage)',
+        'Yearly (365 days)' => 'Jährlich (365 Tage)',
+        'Item limit' => 'Beitragslimit',
+        'Configure each Popular Posts widget in Sidebar Settings.' => 'Konfigurieren Sie jedes Widget für beliebte Beiträge in den Sidebar-Einstellungen.',
+        'Open Sidebar Settings' => 'Sidebar-Einstellungen öffnen',
+        'Jy Metrics always collects anonymous daily totals for published content while the plugin is active. The aggregate contains only content identity, bounded content locale, UTC date, and view count; it uses no visitor identifier or cookie and is independent of Google cookie consent. These controls affect visibility, not collection.' => 'Jy Metrics erfasst während der Aktivierung des Plugins stets anonyme Tagessummen für veröffentlichte Inhalte. Das Aggregat enthält nur die Inhaltsidentität, eine begrenzte Inhalts-Locale, das UTC-Datum und die Aufrufzahl; es verwendet keine Besucherkennung oder Cookies und ist unabhängig von der Google-Cookie-Einwilligung. Diese Einstellungen steuern die Sichtbarkeit, nicht die Erfassung.',
+    ];
 
     try {
         $stmt = $pdo->prepare('INSERT IGNORE INTO ui_translations (`scope`, `source`, `value`, `locale`) VALUES (?, ?, ?, ?)');
         foreach ($translations as $source => $value) {
             $stmt->execute([GSK_I18N_SCOPE, $source, $value, 'id']);
         }
-        gsk_save_setting($pdo, GSK_I18N_VERSION_KEY, '13');
+        foreach ($germanTranslations as $source => $value) {
+            $stmt->execute([GSK_I18N_SCOPE, $source, $value, 'de']);
+        }
+        gsk_save_setting($pdo, GSK_I18N_VERSION_KEY, '14');
     } catch (Throwable $e) {
         error_log('[jy-metrics] Could not register translations: ' . $e->getMessage());
     }
@@ -802,6 +824,13 @@ function gsk_e(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
 
+function gsk_content_locale(): string {
+    $locale = function_exists('get_locale') ? get_locale() : '';
+    if (!is_string($locale)) return '';
+    $locale = strtolower(str_replace('_', '-', trim($locale)));
+    return strlen($locale) <= 16 && preg_match('/\A[a-z0-9]+(?:-[a-z0-9]+)*\z/D', $locale) === 1 ? $locale : '';
+}
+
 function gsk_view_payload(array $entity, array $context): ?array {
     if (($context['schema'] ?? null) !== 1
         || ($context['status'] ?? null) !== 'published'
@@ -819,16 +848,17 @@ function gsk_view_payload(array $entity, array $context): ?array {
     $valid = ($kind === 'post' && is_string($type) && isset($routes[$type]) && $route === $routes[$type])
         || ($kind === 'category' && $type === 'category' && $route === 'list.category');
     if (!$valid) return null;
-    return ['kind' => $kind, 'type' => $type, 'id' => $entity['id']];
+    return ['kind' => $kind, 'type' => $type, 'id' => $entity['id'], 'locale' => gsk_content_locale()];
 }
 
 function gsk_record_content_view(PDO $pdo, array $view): bool {
-    $requestKey = $view['kind'] . ':' . $view['id'];
+    $locale = is_string($view['locale'] ?? null) ? $view['locale'] : '';
+    $requestKey = $view['kind'] . ':' . $view['id'] . ':' . $locale;
     if (isset($GLOBALS['gsk_content_views_recorded'][$requestKey])) return false;
     $GLOBALS['gsk_content_views_recorded'][$requestKey] = true;
     try {
-        $stmt = $pdo->prepare('INSERT INTO `' . GSK_CONTENT_VIEWS_TABLE . '` (`entity_kind`, `entity_id`, `view_date_utc`, `entity_type`, `view_count`) VALUES (?, ?, ?, ?, 1) ON DUPLICATE KEY UPDATE `entity_type` = VALUES(`entity_type`), `view_count` = `view_count` + 1');
-        $stmt->execute([$view['kind'], $view['id'], gmdate('Y-m-d'), $view['type']]);
+        $stmt = $pdo->prepare('INSERT INTO `' . GSK_CONTENT_VIEWS_TABLE . '` (`entity_kind`, `entity_id`, `view_date_utc`, `entity_type`, `representation_locale`, `view_count`) VALUES (?, ?, ?, ?, ?, 1) ON DUPLICATE KEY UPDATE `entity_type` = VALUES(`entity_type`), `view_count` = `view_count` + 1');
+        $stmt->execute([$view['kind'], $view['id'], gmdate('Y-m-d'), $view['type'], $locale]);
         return true;
     } catch (Throwable $e) {
         error_log('[jy-metrics] Could not record content view: ' . $e->getMessage());
@@ -956,27 +986,62 @@ function gsk_admin_category_view_action(array $category, array $context, PDO $pd
         . (function_exists('svg_ico') ? svg_ico('eye') : '') . gsk_e($label) . '</a>';
 }
 
+function gsk_popular_posts_collection_context(int $period, int $limit): array {
+    return [
+        'scope' => 'article_list',
+        'table_alias' => 'p',
+        'required_translation_fields' => ['title', 'slug'],
+        'source' => GSK_PLUGIN_NAME,
+        'consumer' => 'popular_posts',
+        'surface' => 'frontend.sidebar',
+        'period' => $period,
+        'limit' => $limit,
+    ];
+}
+
 function gsk_popular_posts(PDO $pdo, int $period, int $limit): array {
     if (!in_array($period, [1, 7, 30, 365], true)) $period = 30;
     $limit = max(1, min(20, $limit));
-    $cacheKey = spl_object_id($pdo) . ':' . $period . ':' . $limit;
+    $locale = gsk_content_locale();
+    $context = gsk_popular_posts_collection_context($period, $limit);
+    $clauses = function_exists('collection_query_clauses')
+        ? collection_query_clauses(['where' => [], 'params' => []], $context)
+        : ['where' => [], 'params' => []];
+    $cacheKey = spl_object_id($pdo) . ':' . hash('sha256', serialize([$period, $limit, $locale, $clauses]));
     if (isset($GLOBALS['gsk_popular_posts'][$cacheKey])) return $GLOBALS['gsk_popular_posts'][$cacheKey];
     $startDate = gmdate('Y-m-d', time() - (($period - 1) * 86400));
     $endDate = gmdate('Y-m-d');
     try {
-        $sql = 'SELECT p.id, p.title, p.slug, p.created_at, SUM(v.`view_count`) AS view_count
+        $where = ['p.type = \'article\'', 'p.status = \'published\'', 'p.is_deleted = 0'];
+        foreach ($clauses['where'] ?? [] as $clause) {
+            if (is_string($clause) && trim($clause) !== '') $where[] = '(' . $clause . ')';
+        }
+        $localeClause = $locale === ''
+            ? "v.`representation_locale` = ''"
+            : "v.`representation_locale` IN ('', :gsk_locale)";
+        $sql = 'SELECT p.id, p.title, p.slug, p.type, p.created_at, SUM(v.`view_count`) AS view_count
             FROM posts p
-            INNER JOIN `' . GSK_CONTENT_VIEWS_TABLE . '` v ON v.`entity_kind` = \'post\' AND v.`entity_id` = p.id AND v.`entity_type` = \'article\' AND v.`view_date_utc` BETWEEN :start_date AND :end_date
-            WHERE p.type = \'article\' AND p.status = \'published\' AND p.is_deleted = 0
-            GROUP BY p.id, p.title, p.slug, p.created_at
+            INNER JOIN `' . GSK_CONTENT_VIEWS_TABLE . '` v ON v.`entity_kind` = \'post\' AND v.`entity_id` = p.id AND v.`entity_type` = \'article\' AND v.`view_date_utc` BETWEEN :gsk_start_date AND :gsk_end_date AND ' . $localeClause . '
+            WHERE ' . implode(' AND ', $where) . '
+            GROUP BY p.id, p.title, p.slug, p.type, p.created_at
             ORDER BY view_count DESC, p.id ASC
-            LIMIT :limit';
+            LIMIT :gsk_limit';
         $stmt = $pdo->prepare($sql);
-        $stmt->bindValue(':start_date', $startDate);
-        $stmt->bindValue(':end_date', $endDate);
-        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':gsk_start_date', $startDate);
+        $stmt->bindValue(':gsk_end_date', $endDate);
+        if ($locale !== '') $stmt->bindValue(':gsk_locale', $locale);
+        foreach ($clauses['params'] ?? [] as $name => $value) {
+            if (!is_string($name) || str_starts_with($name, ':gsk_')
+                || preg_match('/\A:[A-Za-z][A-Za-z0-9_]*\z/D', $name) !== 1 || !is_scalar($value)) {
+                throw new UnexpectedValueException('Invalid collection query parameter.');
+            }
+            $stmt->bindValue($name, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+        }
+        $stmt->bindValue(':gsk_limit', $limit, PDO::PARAM_INT);
         $stmt->execute();
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        if (function_exists('collection_filter_rows')) $rows = collection_filter_rows($rows, $context);
+        $rows = array_slice($rows, 0, $limit);
         $GLOBALS['gsk_popular_posts'][$cacheKey] = $rows;
         return $rows;
     } catch (Throwable $e) {

@@ -24,7 +24,7 @@ at once.
 
 ## Requirements
 
-- Jyavani CMS 2.3.194 or newer
+- Jyavani CMS 2.3.195 or newer
 - PHP 8.1 or newer
 - PHP extensions: PDO, JSON, and cURL
 - An OAuth web application from a supported analytics provider
@@ -56,17 +56,23 @@ required service and to the server or site that uses it.
 
 ### Content Views
 
-Jy Metrics records one view per resolved entity and public GET request in a UTC
-daily aggregate. It stores only the content kind, content ID, bounded content
-type, UTC date, and count. It does not store visitor identifiers, cookies, IP
-addresses, or raw event rows. Collection remains active while the plugin is
-active and is independent of Google cookie consent.
+Jy Metrics records one view per resolved entity, content locale, and public GET
+request in a UTC daily aggregate. It stores only the content kind, content ID,
+bounded content type and locale, UTC date, and count. It does not store visitor
+identifiers, cookies, IP addresses, or raw event rows. Collection remains active
+while the plugin is active and is independent of Google cookie consent.
 
 The **Content Views** settings card controls visibility only. Dashboard row
 counts and public single Article/Page counts are disabled by default. Configure
 each **Jy Metrics Popular Posts** instance in Sidebar Settings with its own
 Today, 30-day, or 365-day period and 1-20 item limit, so multiple independently
 ranked widgets can be used at once.
+
+Popular Posts uses the CMS collection contracts when available. Translation
+plugins can therefore restrict candidates to public representations and overlay
+localized titles and URLs without becoming a Jy Metrics dependency. Historical
+counts recorded before locale tracking remain a shared ranking baseline; new
+views are ranked within the current content locale.
 
 ## Permissions
 

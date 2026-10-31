@@ -6,6 +6,9 @@ define('ADMIN_BASE_PATH', '/dashboard');
 $GLOBALS['gsk_test_actions'] = [];
 $GLOBALS['gsk_test_filters'] = [];
 $GLOBALS['gsk_test_settings'] = [];
+$GLOBALS['gsk_test_locale'] = 'en';
+$GLOBALS['gsk_test_collection_excluded'] = [];
+$GLOBALS['gsk_test_collection_translations'] = [];
 
 function add_action(string $hook, callable $callback, int $priority = 10): void
 {
@@ -35,6 +38,36 @@ function user_can(PDO $pdo, int $actorId, string $permission): bool
 function get_post_permalink(array $post): string
 {
     return '/canonical/' . rawurlencode((string)$post['slug']) . '/';
+}
+
+function get_locale(): string
+{
+    return $GLOBALS['gsk_test_locale'];
+}
+
+function collection_query_clauses(array $clauses, array $context = []): array
+{
+    $GLOBALS['gsk_test_collection_query_contexts'][] = $context;
+    $excluded = $GLOBALS['gsk_test_collection_excluded'][$GLOBALS['gsk_test_locale']] ?? null;
+    if (is_int($excluded)) {
+        $clauses['where'][] = 'p.id <> :test_excluded_post';
+        $clauses['params'][':test_excluded_post'] = $excluded;
+    }
+    return $clauses;
+}
+
+function collection_filter_rows(array $rows, array $context = []): array
+{
+    $GLOBALS['gsk_test_collection_row_contexts'][] = $context;
+    $translations = $GLOBALS['gsk_test_collection_translations'][$GLOBALS['gsk_test_locale']] ?? [];
+    foreach ($rows as &$row) {
+        $translation = $translations[(int)($row['id'] ?? 0)] ?? null;
+        if (!is_array($translation)) continue;
+        $row['title'] = $translation['title'];
+        $row['slug'] = $translation['slug'];
+    }
+    unset($row);
+    return $rows;
 }
 
 $pdo = new PDO('sqlite::memory:');
@@ -67,8 +100,8 @@ $validContext = [
     'schema' => 1, 'route' => 'single.post', 'status' => 'published', 'is_public' => true,
     'canonical_url' => '/article/', 'page' => 1, 'request_method' => 'GET',
 ];
-$check(gsk_view_payload(['kind' => 'post', 'type' => 'article', 'id' => 42], $validContext) === ['kind' => 'post', 'type' => 'article', 'id' => 42], 'published schema-1 GET Article payload is accepted');
-$check(gsk_view_payload(['kind' => 'category', 'type' => 'category', 'id' => 5], [...$validContext, 'route' => 'list.category']) === ['kind' => 'category', 'type' => 'category', 'id' => 5], 'resolved Category payload is accepted');
+$check(gsk_view_payload(['kind' => 'post', 'type' => 'article', 'id' => 42], $validContext) === ['kind' => 'post', 'type' => 'article', 'id' => 42, 'locale' => 'en'], 'published schema-1 GET Article payload includes its bounded representation locale');
+$check(gsk_view_payload(['kind' => 'category', 'type' => 'category', 'id' => 5], [...$validContext, 'route' => 'list.category']) === ['kind' => 'category', 'type' => 'category', 'id' => 5, 'locale' => 'en'], 'resolved Category payload includes its bounded representation locale');
 $check(gsk_view_payload(['kind' => 'post', 'type' => 'article', 'id' => 42], [...$validContext, 'request_method' => 'HEAD']) === null
     && gsk_view_payload(['kind' => 'post', 'type' => 'article', 'id' => '42'], $validContext) === null
     && gsk_view_payload(['kind' => 'post', 'type' => 'article', 'id' => 42], [...$validContext, 'status' => 'draft']) === null,
@@ -83,8 +116,8 @@ $check(gsk_post_list_view_select('', '', ['schema' => 1, 'type' => 'article', 'a
     'missing content-view schema fails closed without breaking dashboard content lists');
 $GLOBALS['gsk_test_settings'] = [];
 
-$pdo->exec('CREATE TABLE jy_metrics_content_views_daily (entity_kind TEXT, entity_id INTEGER, view_date_utc TEXT, entity_type TEXT, view_count INTEGER)');
-$pdo->exec("INSERT INTO jy_metrics_content_views_daily VALUES ('post', 42, '2026-10-30', 'article', 1234)");
+$pdo->exec('CREATE TABLE jy_metrics_content_views_daily (entity_kind TEXT, entity_id INTEGER, view_date_utc TEXT, entity_type TEXT, representation_locale TEXT, view_count INTEGER)');
+$pdo->exec("INSERT INTO jy_metrics_content_views_daily VALUES ('post', 42, '2026-10-30', 'article', '', 1234)");
 $GLOBALS['gsk_test_settings'][GSK_SHOW_PUBLIC_VIEWS_KEY] = '1';
 $GLOBALS['gsk_current_public_view_entity'] = ['kind' => 'post', 'type' => 'article', 'id' => 42];
 $rendered = gsk_public_view_count('<p>Body</p>', ['id' => 42, 'type' => 'article']);
@@ -98,9 +131,9 @@ $pdo->exec('CREATE TABLE posts (id INTEGER PRIMARY KEY, title TEXT, slug TEXT, c
 $pdo->exec("INSERT INTO posts VALUES (2, '<Popular>', 'popular', '2026-10-29', 'article', 'published', 0)");
 $pdo->exec("INSERT INTO posts VALUES (3, 'Draft', 'draft', '2026-10-29', 'article', 'draft', 0)");
 $pdo->exec("INSERT INTO posts VALUES (4, 'Older popular', 'older', '2026-10-20', 'article', 'published', 0)");
-$pdo->exec("INSERT INTO jy_metrics_content_views_daily VALUES ('post', 2, '" . gmdate('Y-m-d') . "', 'article', 9)");
-$pdo->exec("INSERT INTO jy_metrics_content_views_daily VALUES ('post', 3, '" . gmdate('Y-m-d') . "', 'article', 99)");
-$pdo->exec("INSERT INTO jy_metrics_content_views_daily VALUES ('post', 4, '" . gmdate('Y-m-d', time() - 432000) . "', 'article', 99)");
+$pdo->exec("INSERT INTO jy_metrics_content_views_daily VALUES ('post', 2, '" . gmdate('Y-m-d') . "', 'article', '', 9)");
+$pdo->exec("INSERT INTO jy_metrics_content_views_daily VALUES ('post', 3, '" . gmdate('Y-m-d') . "', 'article', '', 99)");
+$pdo->exec("INSERT INTO jy_metrics_content_views_daily VALUES ('post', 4, '" . gmdate('Y-m-d', time() - 432000) . "', 'article', '', 99)");
 $GLOBALS['gsk_test_settings'][GSK_POPULAR_POSTS_PERIOD_KEY] = '7';
 $GLOBALS['gsk_test_settings'][GSK_POPULAR_POSTS_LIMIT_KEY] = '20';
 $widget = gsk_render_popular_posts_widget($pdo, ['title' => '<Most read>', 'period' => '1', 'limit' => 1]);
@@ -110,6 +143,35 @@ $check(str_contains($widget, 'w-box') && str_contains($widget, 'w-title') && str
     && str_contains($widget, '&lt;Most read&gt;') && str_contains($widget, '&lt;Popular&gt;')
     && !str_contains($widget, '>Draft<') && !str_contains($widget, '>Older popular<'),
     'Popular Posts widget uses per-instance daily period and limit, established classes, escaped markup, and published Articles only');
+$pdo->exec("INSERT INTO posts VALUES (5, 'Unavailable ID', 'unavailable-id', '2026-10-29', 'article', 'published', 0)");
+$pdo->exec("INSERT INTO posts VALUES (6, 'English leader', 'english-leader', '2026-10-29', 'article', 'published', 0)");
+$pdo->exec("INSERT INTO jy_metrics_content_views_daily VALUES ('post', 2, '" . gmdate('Y-m-d') . "', 'article', 'id', 5)");
+$pdo->exec("INSERT INTO jy_metrics_content_views_daily VALUES ('post', 5, '" . gmdate('Y-m-d') . "', 'article', 'id', 100)");
+$pdo->exec("INSERT INTO jy_metrics_content_views_daily VALUES ('post', 6, '" . gmdate('Y-m-d') . "', 'article', 'en', 20)");
+$pdo->exec("INSERT INTO jy_metrics_content_views_daily VALUES ('post', 6, '" . gmdate('Y-m-d') . "', 'article', 'id', 1)");
+$GLOBALS['gsk_test_collection_excluded']['id'] = 5;
+$GLOBALS['gsk_test_collection_translations'] = [
+    'id' => [2 => ['title' => 'Populer ID', 'slug' => 'populer-id'], 6 => ['title' => 'Pemimpin ID', 'slug' => 'pemimpin-id']],
+    'de' => [2 => ['title' => 'Beliebt DE', 'slug' => 'beliebt-de']],
+];
+unset($GLOBALS['gsk_popular_posts']);
+$GLOBALS['gsk_test_locale'] = 'en';
+$englishRows = gsk_popular_posts($pdo, 1, 1);
+$GLOBALS['gsk_test_locale'] = 'id';
+$indonesianRows = gsk_popular_posts($pdo, 1, 1);
+$indonesianWidget = gsk_render_popular_posts_widget($pdo, ['period' => '1', 'limit' => 1]);
+$GLOBALS['gsk_test_locale'] = 'de';
+$germanRows = gsk_popular_posts($pdo, 1, 1);
+$check((int)($englishRows[0]['id'] ?? 0) === 6 && (int)($englishRows[0]['view_count'] ?? 0) === 20
+    && (int)($indonesianRows[0]['id'] ?? 0) === 2 && (int)($indonesianRows[0]['view_count'] ?? 0) === 14
+    && (int)($germanRows[0]['id'] ?? 0) === 2 && (int)($germanRows[0]['view_count'] ?? 0) === 9,
+    'Popular Posts combines the historical baseline with only the current locale and isolates locale cache entries');
+$check(str_contains($indonesianWidget, '>Populer ID<') && str_contains($indonesianWidget, 'href="/canonical/populer-id/"')
+    && !str_contains($indonesianWidget, 'Unavailable ID')
+    && ($GLOBALS['gsk_test_collection_query_contexts'][0]['scope'] ?? null) === 'article_list'
+    && ($GLOBALS['gsk_test_collection_query_contexts'][0]['required_translation_fields'] ?? null) === ['title', 'slug'],
+    'Popular Posts applies generic publication constraints before LIMIT and localized row overlays before rendering');
+$GLOBALS['gsk_test_locale'] = 'en';
 $widgetTypes = [];
 foreach ($callbacks($GLOBALS['gsk_test_filters'], 'sidebar_widget_types') as $callback) $widgetTypes = $callback($widgetTypes);
 $check(isset($widgetTypes['jy_metrics_popular_posts'])
@@ -130,13 +192,17 @@ $root = dirname(__DIR__);
 $pluginSource = (string)file_get_contents($root . '/plugin.php');
 $manifest = json_decode((string)file_get_contents($root . '/plugin.json'), true, 512, JSON_THROW_ON_ERROR);
 $migration = (string)file_get_contents($root . '/migrations/0001-content-views.sql');
+$localeMigration = (string)file_get_contents($root . '/migrations/0002-content-view-locales.sql');
 $settingsSource = (string)file_get_contents($root . '/admin/settings.php');
-$check(($manifest['version'] ?? '') === '2.11.1' && ($manifest['requires']['jyavani'] ?? '') === '>=2.3.194', 'manifest version and Core requirement are updated');
+$check(($manifest['version'] ?? '') === '2.12.0' && ($manifest['requires']['jyavani'] ?? '') === '>=2.3.195', 'manifest version and Core requirement are updated');
 $check(str_contains($migration, 'jy_metrics_content_views_daily') && str_contains($migration, "ENUM('post', 'category')")
     && str_contains($migration, 'PRIMARY KEY (`entity_kind`, `entity_id`, `view_date_utc`)')
     && str_contains($migration, '`entity_type` VARCHAR(16)') && str_contains($migration, '`view_count` BIGINT UNSIGNED')
-    && !preg_match('/visitor|user_id|ip|cookie|session/i', $migration), 'migration is a bounded polymorphic UTC daily aggregate without personal identifiers');
-$check(str_contains($pluginSource, "ON DUPLICATE KEY UPDATE `entity_type` = VALUES(`entity_type`), `view_count` = `view_count` + 1")
+    && str_contains($localeMigration, '`representation_locale` VARCHAR(16)')
+    && str_contains($localeMigration, 'PRIMARY KEY (`entity_kind`, `entity_id`, `view_date_utc`, `representation_locale`)')
+    && !preg_match('/visitor|user_id|ip|cookie|session/i', $migration . $localeMigration), 'migrations define bounded locale-aware UTC daily aggregates without personal identifiers');
+$check(str_contains($pluginSource, "`representation_locale`, `view_count`) VALUES (?, ?, ?, ?, ?, 1)")
+    && str_contains($pluginSource, "ON DUPLICATE KEY UPDATE `entity_type` = VALUES(`entity_type`), `view_count` = `view_count` + 1")
     && str_contains($pluginSource, "DROP TABLE IF EXISTS `' . GSK_CONTENT_VIEWS_TABLE")
     && str_contains($pluginSource, 'DELETE FROM sidebar_zone_items WHERE `type` = ?')
     && str_contains($settingsSource, 'These controls affect visibility, not collection.'),
