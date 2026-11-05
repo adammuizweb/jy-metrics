@@ -36,6 +36,7 @@ const GSK_CONSENT_ADVERTISING_KEY = 'gsk_consent_advertising_enabled';
 const GSK_CONSENT_POLICY_KEY = 'gsk_consent_category_policy';
 const GSK_SHOW_DASHBOARD_VIEWS_KEY = 'gsk_show_dashboard_view_counts';
 const GSK_SHOW_PUBLIC_VIEWS_KEY = 'gsk_show_public_view_count';
+const GSK_CONTENT_REPORT_TIMEOUT = 120;
 const GSK_POPULAR_POSTS_PERIOD_KEY = 'gsk_popular_posts_period';
 const GSK_POPULAR_POSTS_LIMIT_KEY = 'gsk_popular_posts_limit';
 
@@ -530,7 +531,7 @@ function gsk_refresh_ga4_content_views(PDO $pdo, ?array $periods = null, bool $f
         $token = gsk_get_access_token($pdo);
         if ($token === null) throw new RuntimeException('Google Analytics is not connected.');
         $url = 'https://analyticsdata.googleapis.com/v1beta/' . $propertyId . ':runReport';
-        $transport ??= static fn(string $requestUrl, array $headers, string $body): array => gsk_json_request($requestUrl, 'POST', $headers, $body);
+        $transport ??= static fn(string $requestUrl, array $headers, string $body): array => gsk_json_request($requestUrl, 'POST', $headers, $body, GSK_CONTENT_REPORT_TIMEOUT);
         foreach ($pending as $period) {
             $views = [];
             $quota = null;
@@ -656,16 +657,18 @@ function gsk_google_auth_url(PDO $pdo): string {
     return 'https://accounts.google.com/o/oauth2/v2/auth?' . http_build_query($params);
 }
 
-function gsk_http_request(string $url, string $method = 'GET', array $headers = [], ?string $body = null): array {
+function gsk_http_request(string $url, string $method = 'GET', array $headers = [], ?string $body = null, int $timeout = 30): array {
     if (!function_exists('curl_init')) {
         return ['ok' => false, 'error' => 'cURL extension not available', 'code' => 0, 'body' => ''];
     }
+    $timeout = max(1, min(GSK_CONTENT_REPORT_TIMEOUT, $timeout));
     $ch = curl_init($url);
     $opts = [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_MAXREDIRS      => 5,
-        CURLOPT_TIMEOUT        => 30,
+        CURLOPT_CONNECTTIMEOUT => min(10, $timeout),
+        CURLOPT_TIMEOUT        => $timeout,
         CURLOPT_CUSTOMREQUEST  => $method,
         CURLOPT_HTTPHEADER     => $headers,
     ];
@@ -683,8 +686,8 @@ function gsk_http_request(string $url, string $method = 'GET', array $headers = 
     return ['ok' => $code >= 200 && $code < 300, 'code' => $code, 'body' => (string)$resp];
 }
 
-function gsk_json_request(string $url, string $method = 'GET', array $headers = [], ?string $body = null): array {
-    $res = gsk_http_request($url, $method, $headers, $body);
+function gsk_json_request(string $url, string $method = 'GET', array $headers = [], ?string $body = null, int $timeout = 30): array {
+    $res = gsk_http_request($url, $method, $headers, $body, $timeout);
 
     // Google can revoke an access token before its recorded expiry. Refresh once
     // and retry so a transient 401 does not break dashboard reports.
@@ -703,7 +706,7 @@ function gsk_json_request(string $url, string $method = 'GET', array $headers = 
                 $headers[$i] = 'Authorization: Bearer ' . $token;
             }
         }
-        $res = gsk_http_request($url, $method, $headers, $body);
+        $res = gsk_http_request($url, $method, $headers, $body, $timeout);
     }
     if (!$res['ok']) return $res;
     $data = json_decode($res['body'], true);

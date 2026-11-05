@@ -321,10 +321,12 @@ $pluginSource = (string)file_get_contents($root . '/plugin.php');
 $manifest = json_decode((string)file_get_contents($root . '/plugin.json'), true, 512, JSON_THROW_ON_ERROR);
 $settingsSource = (string)file_get_contents($root . '/admin/settings.php');
 $refreshTool = (string)file_get_contents($root . '/tools/refresh-content-views.php');
-$check(($manifest['version'] ?? '') === '2.13.0' && ($manifest['requires']['jyavani'] ?? '') === '>=2.3.195', 'manifest uses the reviewed minor-release identity and Core requirement');
+$check(($manifest['version'] ?? '') === '2.13.1' && ($manifest['requires']['jyavani'] ?? '') === '>=2.3.195', 'manifest uses the reviewed patch-release identity and Core requirement');
 $check(!str_contains($pluginSource, 'function gsk_record_content_view')
     && !str_contains($pluginSource, 'ON DUPLICATE KEY UPDATE `entity_type`')
     && str_contains($pluginSource, "gsk_ga4_content_v1_")
+    && str_contains($pluginSource, "gsk_json_request(\$requestUrl, 'POST', \$headers, \$body, GSK_CONTENT_REPORT_TIMEOUT)")
+    && str_contains($pluginSource, 'CURLOPT_CONNECTTIMEOUT => min(10, $timeout)')
     && str_contains($pluginSource, "user_can(\$pdo, \$actorId, 'core.sidebar.manage')")
     && str_contains($pluginSource, "user_can(\$pdo, \$actorId, 'plugin.jy-metrics.reports.read')"),
     'runtime no longer increments first-party views and refreshes GA4 cache only on relevant authorized dashboard routes');
