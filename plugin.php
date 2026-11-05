@@ -158,7 +158,7 @@ function gsk_help_tooltip(string $id, string $label, string $description): strin
 }
 
 function gsk_register_translations(PDO $pdo): void {
-    if (gsk_setting($pdo, GSK_I18N_VERSION_KEY) === '14') return;
+    if (gsk_setting($pdo, GSK_I18N_VERSION_KEY) === '15') return;
 
     $translations = [
         'Active users' => 'Pengguna aktif',
@@ -242,17 +242,17 @@ function gsk_register_translations(PDO $pdo): void {
         '%s view' => '%s tampilan',
         '%s views' => '%s tampilan',
         'Popular Posts' => 'Artikel Populer',
-        'Published articles ranked by first-party views using the global Jy Metrics settings.' => 'Artikel terbit yang diurutkan berdasarkan tampilan pihak pertama menggunakan pengaturan global Jy Metrics.',
+        'Published articles ranked by cached Google Analytics views.' => 'Artikel terbit yang diurutkan berdasarkan tampilan Google Analytics yang disimpan dalam cache.',
         'No popular posts in this period.' => 'Belum ada artikel populer dalam periode ini.',
         'Rank %d' => 'Peringkat %d',
         'Open Jy Metrics dashboard' => 'Buka dasbor Jy Metrics',
         'Content Views' => 'Tampilan Konten',
-        'First-party aggregate · visibility %s' => 'Agregat pihak pertama · visibilitas %s',
+        'Google Analytics cache · visibility %s' => 'Cache Google Analytics · visibilitas %s',
         'enabled' => 'aktif',
         'disabled' => 'nonaktif',
-        'Jy Metrics always collects anonymous daily totals for published content while the plugin is active. The aggregate contains only content identity, bounded content locale, UTC date, and view count; it uses no visitor identifier or cookie and is independent of Google cookie consent. These controls affect visibility, not collection.' => 'Jy Metrics selalu mengumpulkan total harian anonim untuk konten terbit selama plugin aktif. Agregat hanya berisi identitas konten, locale konten terbatas, tanggal UTC, dan jumlah tampilan; tanpa identitas pengunjung atau cookie dan tidak bergantung pada persetujuan cookie Google. Kontrol ini mengatur visibilitas, bukan pengumpulan.',
+        'View counts come from Google Analytics and are cached in this database. Public requests only read the cache; an authorized dashboard request refreshes stale data at most once per hour.' => 'Jumlah tampilan berasal dari Google Analytics dan disimpan dalam cache database ini. Permintaan publik hanya membaca cache; permintaan dasbor yang berwenang memperbarui data kedaluwarsa paling banyak sekali per jam.',
         'Show dashboard view counts' => 'Tampilkan jumlah tampilan di dasbor',
-        'Add all-time counts to Article, Page, Theme Content, and Category row actions for report readers.' => 'Tambahkan jumlah sepanjang waktu ke tindakan baris Artikel, Halaman, Konten Tema, dan Kategori untuk pembaca laporan.',
+        'Add cached all-time Google Analytics counts to Article and Page row actions for report readers.' => 'Tambahkan jumlah sepanjang waktu Google Analytics yang disimpan dalam cache ke tindakan baris Artikel dan Halaman untuk pembaca laporan.',
         'Show public view count on single Article/Page' => 'Tampilkan jumlah tampilan publik pada Artikel/Halaman tunggal',
         'Prepend an accessible all-time count to single Article and Page content only.' => 'Tambahkan jumlah sepanjang waktu yang aksesibel di awal konten Artikel dan Halaman tunggal saja.',
         'Popular Posts period' => 'Periode Artikel Populer',
@@ -261,9 +261,10 @@ function gsk_register_translations(PDO $pdo): void {
         'Global values used by every Jy Metrics Popular Posts Sidebar widget. Period and item limit are not configured per widget.' => 'Nilai global yang digunakan oleh setiap widget Sidebar Artikel Populer Jy Metrics. Periode dan batas item tidak diatur per widget.',
         'Invalid privacy consent or content view settings.' => 'Pengaturan persetujuan privasi atau tampilan konten tidak valid.',
         'Could not load search queries' => 'Tidak dapat memuat kueri penelusuran',
-        'Published articles ranked by first-party views using each widget\'s period and item limit.' => 'Artikel terbit yang diurutkan berdasarkan tampilan pihak pertama menggunakan periode dan batas item setiap widget.',
+        'Published articles ranked by cached Google Analytics views using each widget\'s period and item limit.' => 'Artikel terbit yang diurutkan berdasarkan tampilan Google Analytics yang disimpan dalam cache menggunakan periode dan batas item setiap widget.',
         'Popular period' => 'Periode populer',
         'Today' => 'Hari ini',
+        'Weekly (7 days)' => 'Mingguan (7 hari)',
         'Monthly (30 days)' => 'Bulanan (30 hari)',
         'Yearly (365 days)' => 'Tahunan (365 hari)',
         'Item limit' => 'Batas item',
@@ -279,15 +280,16 @@ function gsk_register_translations(PDO $pdo): void {
         'Popular Posts period' => 'Zeitraum beliebter Beiträge',
         '%d days' => '%d Tage',
         'Popular Posts item limit' => 'Anzahl beliebter Beiträge',
-        'Published articles ranked by first-party views using each widget\'s period and item limit.' => 'Veröffentlichte Artikel, sortiert nach eigenen Aufrufen im Zeitraum und mit dem Beitragslimit des jeweiligen Widgets.',
+        'Published articles ranked by cached Google Analytics views using each widget\'s period and item limit.' => 'Veröffentlichte Artikel, sortiert nach zwischengespeicherten Google-Analytics-Aufrufen im Zeitraum und mit dem Beitragslimit des jeweiligen Widgets.',
         'Popular period' => 'Beliebter Zeitraum',
         'Today' => 'Heute',
+        'Weekly (7 days)' => 'Wöchentlich (7 Tage)',
         'Monthly (30 days)' => 'Monatlich (30 Tage)',
         'Yearly (365 days)' => 'Jährlich (365 Tage)',
         'Item limit' => 'Beitragslimit',
         'Configure each Popular Posts widget in Sidebar Settings.' => 'Konfigurieren Sie jedes Widget für beliebte Beiträge in den Sidebar-Einstellungen.',
         'Open Sidebar Settings' => 'Sidebar-Einstellungen öffnen',
-        'Jy Metrics always collects anonymous daily totals for published content while the plugin is active. The aggregate contains only content identity, bounded content locale, UTC date, and view count; it uses no visitor identifier or cookie and is independent of Google cookie consent. These controls affect visibility, not collection.' => 'Jy Metrics erfasst während der Aktivierung des Plugins stets anonyme Tagessummen für veröffentlichte Inhalte. Das Aggregat enthält nur die Inhaltsidentität, eine begrenzte Inhalts-Locale, das UTC-Datum und die Aufrufzahl; es verwendet keine Besucherkennung oder Cookies und ist unabhängig von der Google-Cookie-Einwilligung. Diese Einstellungen steuern die Sichtbarkeit, nicht die Erfassung.',
+        'View counts come from Google Analytics and are cached in this database. Public requests only read the cache; an authorized dashboard request refreshes stale data at most once per hour.' => 'Aufrufzahlen stammen aus Google Analytics und werden in dieser Datenbank zwischengespeichert. Öffentliche Anfragen lesen nur den Cache; eine autorisierte Dashboard-Anfrage aktualisiert veraltete Daten höchstens einmal pro Stunde.',
     ];
 
     try {
@@ -298,7 +300,7 @@ function gsk_register_translations(PDO $pdo): void {
         foreach ($germanTranslations as $source => $value) {
             $stmt->execute([GSK_I18N_SCOPE, $source, $value, 'de']);
         }
-        gsk_save_setting($pdo, GSK_I18N_VERSION_KEY, '14');
+        gsk_save_setting($pdo, GSK_I18N_VERSION_KEY, '15');
     } catch (Throwable $e) {
         error_log('[jy-metrics] Could not register translations: ' . $e->getMessage());
     }
@@ -334,12 +336,16 @@ function gsk_cache_get(PDO $pdo, string $key, int $ttl = 3600): ?array {
     }
 }
 
-function gsk_cache_set(PDO $pdo, string $key, array $data): void {
+function gsk_cache_set(PDO $pdo, string $key, array $data): bool {
     try {
-        $stmt = $pdo->prepare("INSERT INTO `" . GSK_CACHE_TABLE . "` (`cache_key`, `data`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `data` = VALUES(`data`), `created_at` = CURRENT_TIMESTAMP");
-        $stmt->execute([$key, json_encode($data, JSON_UNESCAPED_UNICODE)]);
+        $sql = (string)$pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite'
+            ? "INSERT INTO `" . GSK_CACHE_TABLE . "` (`cache_key`, `data`) VALUES (?, ?) ON CONFLICT(`cache_key`) DO UPDATE SET `data` = excluded.`data`, `created_at` = CURRENT_TIMESTAMP"
+            : "INSERT INTO `" . GSK_CACHE_TABLE . "` (`cache_key`, `data`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `data` = VALUES(`data`), `created_at` = CURRENT_TIMESTAMP";
+        $stmt = $pdo->prepare($sql);
+        return $stmt->execute([$key, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)]);
     } catch (Throwable $e) {
         error_log('[jy-metrics] Cache write failed: ' . $e->getMessage());
+        return false;
     }
 }
 
@@ -349,6 +355,236 @@ function gsk_cache_delete(PDO $pdo, string $pattern): void {
         $stmt->execute([$pattern]);
     } catch (Throwable $e) {
         error_log('[jy-metrics] Cache delete failed: ' . $e->getMessage());
+    }
+}
+
+function gsk_ga4_content_periods(): array {
+    return [1, 7, 30, 365, 'all'];
+}
+
+function gsk_ga4_content_period_range(int|string $period): ?array {
+    return match ($period) {
+        1 => ['start' => 'today', 'end' => 'today'],
+        7 => ['start' => '7daysAgo', 'end' => 'yesterday'],
+        30 => ['start' => '30daysAgo', 'end' => 'yesterday'],
+        365 => ['start' => '365daysAgo', 'end' => 'yesterday'],
+        'all' => ['start' => '2020-10-14', 'end' => 'yesterday'],
+        default => null,
+    };
+}
+
+function gsk_ga4_content_host(PDO $pdo): string {
+    $candidates = [];
+    if (function_exists('settings_get')) $candidates[] = (string)settings_get($pdo, 'site_host', '');
+    $candidates[] = (string)($_SERVER['HTTP_HOST'] ?? '');
+    $searchProperty = strtolower(trim(gsk_setting($pdo, GSK_SITE_URL_KEY)));
+    if ($searchProperty !== '' && !str_starts_with($searchProperty, 'sc-domain:')) $candidates[] = $searchProperty;
+    foreach ($candidates as $candidate) {
+        $candidate = strtolower(trim($candidate));
+        $host = (string)(parse_url(str_contains($candidate, '://') ? $candidate : 'https://' . $candidate, PHP_URL_HOST) ?: '');
+        if (preg_match('/\A(?:[a-z0-9](?:[a-z0-9-]{0,62})\.)*[a-z0-9](?:[a-z0-9-]{0,62})\z/D', $host) === 1) return $host;
+    }
+    return '';
+}
+
+function gsk_normalize_page_path(string $value): string {
+    $path = parse_url(trim($value), PHP_URL_PATH);
+    if (!is_string($path) || $path === '' || preg_match('/[\x00-\x1F\x7F]/', $path) === 1) return '';
+    $path = rawurldecode($path);
+    $path = preg_replace('#/{2,}#', '/', $path) ?? '';
+    if ($path === '' || !str_starts_with($path, '/')) return '';
+    return $path === '/' ? '/' : rtrim($path, '/');
+}
+
+function gsk_ga4_content_cache_key(string $propertyId, string $host, int|string $period): string {
+    return 'gsk_ga4_content_v1_' . md5($propertyId . "\0" . $host . "\0" . (string)$period);
+}
+
+function gsk_ga4_content_snapshot(PDO $pdo, int|string $period, int $ttl = 86400): ?array {
+    if (!in_array($period, gsk_ga4_content_periods(), true)) return null;
+    $propertyId = ltrim(gsk_setting($pdo, GSK_GA4_PROPERTY_ID_KEY), '/');
+    if ($propertyId === '') return null;
+    if (!str_starts_with($propertyId, 'properties/')) $propertyId = 'properties/' . $propertyId;
+    $host = gsk_ga4_content_host($pdo);
+    if ($host === '') return null;
+    $cacheKey = gsk_ga4_content_cache_key($propertyId, $host, $period);
+    $runtimeKey = $cacheKey . ':' . $ttl;
+    if (array_key_exists($runtimeKey, $GLOBALS['gsk_ga4_content_snapshots'] ?? [])) {
+        return $GLOBALS['gsk_ga4_content_snapshots'][$runtimeKey];
+    }
+    $snapshot = gsk_cache_get($pdo, $cacheKey, $ttl);
+    $snapshot = is_array($snapshot['views'] ?? null) ? $snapshot : null;
+    $GLOBALS['gsk_ga4_content_snapshots'][$runtimeKey] = $snapshot;
+    return $snapshot;
+}
+
+function gsk_ga4_content_required_periods(PDO $pdo): array {
+    $periods = [];
+    try {
+        $stmt = $pdo->prepare('SELECT `config` FROM `sidebar_zone_items` WHERE `type` = ? AND `active` = 1');
+        $stmt->execute(['jy_metrics_popular_posts']);
+        foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $configJson) {
+            $config = json_decode((string)$configJson, true);
+            $period = filter_var(is_array($config) ? ($config['period'] ?? 30) : 30, FILTER_VALIDATE_INT);
+            if ($period !== false && in_array($period, [1, 7, 30, 365], true)) $periods[$period] = $period;
+        }
+    } catch (Throwable $e) {
+        return [];
+    }
+    $settings = gsk_content_view_settings($pdo);
+    if ($settings['show_dashboard'] || $settings['show_public']) $periods['all'] = 'all';
+    $ordered = [];
+    foreach (gsk_ga4_content_periods() as $period) if (isset($periods[$period])) $ordered[] = $period;
+    return $ordered;
+}
+
+function gsk_ga4_content_request(int|string $period, string $host, int $offset = 0): ?array {
+    $range = gsk_ga4_content_period_range($period);
+    if ($range === null || $host === '' || $offset < 0) return null;
+    $request = [
+        'dateRanges' => [['startDate' => $range['start'], 'endDate' => $range['end']]],
+        'dimensions' => [['name' => 'hostName'], ['name' => 'pagePath']],
+        'metrics' => [['name' => 'screenPageViews']],
+        'orderBys' => [
+            ['dimension' => ['dimensionName' => 'hostName']],
+            ['dimension' => ['dimensionName' => 'pagePath']],
+        ],
+        'limit' => 10000,
+        'returnPropertyQuota' => true,
+        'dimensionFilter' => ['filter' => [
+            'fieldName' => 'hostName',
+            'stringFilter' => ['matchType' => 'EXACT', 'value' => $host, 'caseSensitive' => false],
+        ]],
+    ];
+    if ($offset > 0) $request['offset'] = $offset;
+    return $request;
+}
+
+function gsk_ga4_content_parse(array $response, string $host): array {
+    $views = [];
+    foreach ($response['rows'] ?? [] as $row) {
+        $dimensions = $row['dimensionValues'] ?? [];
+        $rowHost = strtolower(trim((string)($dimensions[0]['value'] ?? '')));
+        if ($host !== '' && !hash_equals($host, $rowHost)) continue;
+        $path = gsk_normalize_page_path((string)($dimensions[1]['value'] ?? ''));
+        $count = max(0, (int)($row['metricValues'][0]['value'] ?? 0));
+        if ($path !== '' && $count > 0) $views[$path] = ($views[$path] ?? 0) + $count;
+    }
+    arsort($views, SORT_NUMERIC);
+    return $views;
+}
+
+function gsk_refresh_ga4_content_views(PDO $pdo, ?array $periods = null, bool $force = false, ?callable $transport = null): array {
+    $periods ??= gsk_ga4_content_required_periods($pdo);
+    $periods = array_values(array_unique(array_filter($periods, static fn($period): bool => in_array($period, gsk_ga4_content_periods(), true)), SORT_REGULAR));
+    if ($periods === []) return ['ok' => true, 'refreshed' => [], 'cached' => []];
+
+    $propertyId = ltrim(gsk_setting($pdo, GSK_GA4_PROPERTY_ID_KEY), '/');
+    if ($propertyId === '') return ['ok' => false, 'error' => 'No GA4 property configured', 'refreshed' => [], 'cached' => []];
+    if (!str_starts_with($propertyId, 'properties/')) $propertyId = 'properties/' . $propertyId;
+    $host = gsk_ga4_content_host($pdo);
+    if ($host === '') return ['ok' => false, 'error' => 'No exact site hostname is configured', 'refreshed' => [], 'cached' => []];
+    $pending = [];
+    $cached = [];
+    foreach ($periods as $period) {
+        $key = gsk_ga4_content_cache_key($propertyId, $host, $period);
+        if (!$force && gsk_cache_get($pdo, $key, 3600) !== null) $cached[] = $period;
+        else $pending[] = $period;
+    }
+    if ($pending === []) return ['ok' => true, 'refreshed' => [], 'cached' => $cached];
+
+    $errorKey = 'gsk_ga4_content_error_' . md5($propertyId . "\0" . $host);
+    if (!$force && gsk_cache_get($pdo, $errorKey, 900) !== null) {
+        return ['ok' => false, 'error' => 'Google Analytics refresh is temporarily throttled after an error.', 'refreshed' => [], 'cached' => $cached];
+    }
+
+    $driver = (string)$pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+    $lockName = 'jym-ga4-' . substr(hash('sha256', $propertyId . "\0" . $host), 0, 48);
+    $locked = true;
+    if ($driver === 'mysql') {
+        try {
+            $lock = $pdo->prepare('SELECT GET_LOCK(?, 0)');
+            $lock->execute([$lockName]);
+            $locked = (int)$lock->fetchColumn() === 1;
+        } catch (Throwable $e) {
+            $locked = false;
+        }
+    }
+    if (!$locked) return ['ok' => true, 'refreshed' => [], 'cached' => $cached, 'busy' => true];
+
+    $refreshed = [];
+    try {
+        if (!$force) {
+            if (gsk_cache_get($pdo, $errorKey, 900) !== null) {
+                return ['ok' => false, 'error' => 'Google Analytics refresh is temporarily throttled after an error.', 'refreshed' => [], 'cached' => $cached];
+            }
+            $stillPending = [];
+            foreach ($pending as $period) {
+                $key = gsk_ga4_content_cache_key($propertyId, $host, $period);
+                if (gsk_cache_get($pdo, $key, 3600) !== null) $cached[] = $period;
+                else $stillPending[] = $period;
+            }
+            $pending = $stillPending;
+            if ($pending === []) return ['ok' => true, 'refreshed' => [], 'cached' => $cached];
+        }
+        $token = gsk_get_access_token($pdo);
+        if ($token === null) throw new RuntimeException('Google Analytics is not connected.');
+        $url = 'https://analyticsdata.googleapis.com/v1beta/' . $propertyId . ':runReport';
+        $transport ??= static fn(string $requestUrl, array $headers, string $body): array => gsk_json_request($requestUrl, 'POST', $headers, $body);
+        foreach ($pending as $period) {
+            $views = [];
+            $quota = null;
+            $offset = 0;
+            do {
+                $request = gsk_ga4_content_request($period, $host, $offset);
+                if ($request === null) throw new RuntimeException('Invalid Google Analytics content report request.');
+                $response = $transport($url, ['Authorization: Bearer ' . $token, 'Content-Type: application/json'], json_encode($request, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+                if (($response['ok'] ?? false) !== true || !is_array($response['data'] ?? null)) {
+                    $message = (string)($response['data']['error']['message'] ?? $response['error'] ?? ('HTTP ' . (int)($response['code'] ?? 0)));
+                    throw new RuntimeException($message !== '' ? $message : 'Google Analytics request failed.');
+                }
+                $pageRows = is_array($response['data']['rows'] ?? null) ? $response['data']['rows'] : [];
+                foreach (gsk_ga4_content_parse($response['data'], $host) as $path => $count) {
+                    $views[$path] = ($views[$path] ?? 0) + $count;
+                }
+                $quota = $response['data']['propertyQuota'] ?? $quota;
+                $rowCount = max(0, (int)($response['data']['rowCount'] ?? count($pageRows)));
+                if ($rowCount > 100000) throw new RuntimeException('Google Analytics content report exceeds the supported 100,000-row limit.');
+                $offset += count($pageRows);
+            } while ($pageRows !== [] && $offset < $rowCount);
+            arsort($views, SORT_NUMERIC);
+            $range = gsk_ga4_content_period_range($period);
+            $snapshot = [
+                'source' => 'google-analytics',
+                'propertyId' => $propertyId,
+                'host' => $host,
+                'period' => $period,
+                'startDate' => $range['start'],
+                'endDate' => $range['end'],
+                'fetchedAt' => gmdate(DATE_ATOM),
+                'views' => $views,
+                'quota' => $quota,
+            ];
+            if (!gsk_cache_set($pdo, gsk_ga4_content_cache_key($propertyId, $host, $period), $snapshot)) {
+                throw new RuntimeException('Could not persist the Google Analytics content cache.');
+            }
+            $GLOBALS['gsk_ga4_content_snapshots'] = [];
+            $refreshed[] = $period;
+        }
+        return ['ok' => true, 'refreshed' => $refreshed, 'cached' => $cached];
+    } catch (Throwable $e) {
+        gsk_cache_set($pdo, $errorKey, ['message' => $e->getMessage(), 'failedAt' => gmdate(DATE_ATOM)]);
+        error_log('[jy-metrics] Google Analytics content cache refresh failed: ' . $e->getMessage());
+        return ['ok' => false, 'error' => $e->getMessage(), 'refreshed' => $refreshed, 'cached' => $cached];
+    } finally {
+        if ($driver === 'mysql') {
+            try {
+                $release = $pdo->prepare('SELECT RELEASE_LOCK(?)');
+                $release->execute([$lockName]);
+            } catch (Throwable $e) {
+                error_log('[jy-metrics] Could not release Google Analytics refresh lock: ' . $e->getMessage());
+            }
+        }
     }
 }
 
@@ -851,21 +1087,6 @@ function gsk_view_payload(array $entity, array $context): ?array {
     return ['kind' => $kind, 'type' => $type, 'id' => $entity['id'], 'locale' => gsk_content_locale()];
 }
 
-function gsk_record_content_view(PDO $pdo, array $view): bool {
-    $locale = is_string($view['locale'] ?? null) ? $view['locale'] : '';
-    $requestKey = $view['kind'] . ':' . $view['id'] . ':' . $locale;
-    if (isset($GLOBALS['gsk_content_views_recorded'][$requestKey])) return false;
-    $GLOBALS['gsk_content_views_recorded'][$requestKey] = true;
-    try {
-        $stmt = $pdo->prepare('INSERT INTO `' . GSK_CONTENT_VIEWS_TABLE . '` (`entity_kind`, `entity_id`, `view_date_utc`, `entity_type`, `representation_locale`, `view_count`) VALUES (?, ?, ?, ?, ?, 1) ON DUPLICATE KEY UPDATE `entity_type` = VALUES(`entity_type`), `view_count` = `view_count` + 1');
-        $stmt->execute([$view['kind'], $view['id'], gmdate('Y-m-d'), $view['type'], $locale]);
-        return true;
-    } catch (Throwable $e) {
-        error_log('[jy-metrics] Could not record content view: ' . $e->getMessage());
-        return false;
-    }
-}
-
 function gsk_frontend_entity_viewed(mixed $entity, mixed $context, mixed $pdo): void {
     if (!is_array($entity) || !is_array($context) || !($pdo instanceof PDO)) return;
     $view = gsk_view_payload($entity, $context);
@@ -873,34 +1094,209 @@ function gsk_frontend_entity_viewed(mixed $entity, mixed $context, mixed $pdo): 
     if ($view['kind'] === 'post' && in_array($view['type'], ['article', 'page'], true)) {
         $GLOBALS['gsk_current_public_view_entity'] = $view;
     }
-    gsk_record_content_view($pdo, $view);
 }
 
-function gsk_content_view_total(PDO $pdo, string $kind, int $entityId): int {
-    if (!in_array($kind, ['post', 'category'], true) || $entityId < 1) return 0;
-    $cacheKey = $kind . ':' . $entityId;
-    if (isset($GLOBALS['gsk_content_view_totals'][$cacheKey])) return (int)$GLOBALS['gsk_content_view_totals'][$cacheKey];
-    try {
-        $stmt = $pdo->prepare('SELECT COALESCE(SUM(`view_count`), 0) FROM `' . GSK_CONTENT_VIEWS_TABLE . '` WHERE `entity_kind` = ? AND `entity_id` = ?');
-        $stmt->execute([$kind, $entityId]);
-        $total = max(0, (int)$stmt->fetchColumn());
-    } catch (Throwable $e) {
-        $total = 0;
-    }
-    $GLOBALS['gsk_content_view_totals'][$cacheKey] = $total;
-    return $total;
+function gsk_ga4_content_tracking_context(): array {
+    $current = $GLOBALS['gsk_current_public_view_entity'] ?? null;
+    if (!is_array($current) || !in_array($current['type'] ?? null, ['article', 'page'], true)
+        || (int)($current['id'] ?? 0) < 1) return [];
+    return [
+        'contentId' => (string)$current['type'] . ':' . (int)$current['id'],
+        'contentType' => (string)$current['type'],
+        'contentLocale' => (string)($current['locale'] ?? ''),
+    ];
 }
 
-function gsk_content_views_table_ready(PDO $pdo): bool {
-    $key = spl_object_id($pdo);
-    if (($GLOBALS['gsk_content_views_table_ready'][$key] ?? false) === true) return true;
-    try {
-        $pdo->query('SELECT 1 FROM `' . GSK_CONTENT_VIEWS_TABLE . '` WHERE 1 = 0');
-        $GLOBALS['gsk_content_views_table_ready'][$key] = true;
-        return true;
-    } catch (Throwable $e) {
-        return false;
+function gsk_ga4_post_view_count(PDO $pdo, array $post, int|string $period = 'all', ?array $paths = null): int {
+    $snapshot = gsk_ga4_content_snapshot($pdo, $period);
+    if ($snapshot === null) return 0;
+    if ($paths === null) {
+        $paths = gsk_ga4_content_paths($pdo, [$post])[(int)($post['id'] ?? 0)] ?? [];
+        $resolver = ($post['type'] ?? null) === 'page' ? 'get_page_permalink' : 'get_post_permalink';
+        if (function_exists($resolver)) {
+            try {
+                $paths[] = gsk_normalize_page_path($resolver($post));
+            } catch (Throwable $e) {
+                // The bulk route and fallback paths remain usable.
+            }
+        }
     }
+    $count = 0;
+    foreach (array_unique(array_filter($paths, 'is_string')) as $path) {
+        $count += max(0, (int)($snapshot['views'][gsk_normalize_page_path($path)] ?? 0));
+    }
+    return $count;
+}
+
+function gsk_ga4_content_fallback_path(PDO $pdo, array $post): string {
+    $locale = strtolower(trim((string)($post['ct_locale'] ?? '')));
+    $translatedSlug = trim((string)($post['ct_translated_slug'] ?? ''));
+    if ($locale !== '' && $translatedSlug !== '' && preg_match('/\A[a-z0-9]+(?:-[a-z0-9]+)*\z/D', $locale) === 1) {
+        return gsk_normalize_page_path('/' . rawurlencode($locale) . '/' . rawurlencode($translatedSlug) . '/');
+    }
+    $type = ($post['type'] ?? null) === 'page' ? 'page' : 'post';
+    $structure = function_exists('get_permalink_structure') ? (string)get_permalink_structure($pdo, $type) : '/%slug%/';
+    if (str_contains($structure, '%cat%')) {
+        $resolver = $type === 'page' ? 'get_page_permalink' : 'get_post_permalink';
+        if (!function_exists($resolver)) return '';
+        try {
+            return gsk_normalize_page_path($resolver($post));
+        } catch (Throwable $e) {
+            return '';
+        }
+    }
+    $created = (string)($post['created_at'] ?? '');
+    $timestamp = $created !== '' ? strtotime($created) : false;
+    $path = str_replace(
+        ['%year%', '%monthnum%', '%day%', '%slug%'],
+        [$timestamp === false ? '' : date('Y', $timestamp), $timestamp === false ? '' : date('m', $timestamp), $timestamp === false ? '' : date('d', $timestamp), rawurlencode((string)($post['slug'] ?? ''))],
+        $structure
+    );
+    if (!str_starts_with($path, '/')) $path = '/' . $path;
+    return gsk_normalize_page_path($path);
+}
+
+function gsk_ga4_content_paths(PDO $pdo, array $posts): array {
+    $paths = [];
+    $groups = [];
+    foreach ($posts as $post) {
+        $postId = (int)($post['id'] ?? 0);
+        if ($postId < 1) continue;
+        $locale = strtolower(trim((string)($post['ct_locale'] ?? '')));
+        if ($locale === '' || preg_match('/\A[a-z0-9]+(?:-[a-z0-9]+)*\z/D', $locale) !== 1) $locale = '';
+        $groups[$locale][$postId] = $postId;
+    }
+    try {
+        foreach ($groups as $locale => $ids) {
+            foreach (array_chunk(array_values($ids), 500) as $chunk) {
+                $placeholders = implode(',', array_fill(0, count($chunk), '?'));
+                $stmt = $pdo->prepare('SELECT `post_id`, `path`, `locale` FROM `content_routes` WHERE `locale` = ? AND `post_id` IN (' . $placeholders . ')');
+                $stmt->execute(array_merge([$locale], $chunk));
+                foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $route) {
+                    $routeLocale = (string)($route['locale'] ?? '');
+                    $path = function_exists('content_route_public_path')
+                        ? content_route_public_path((string)$route['path'], $routeLocale)
+                        : '/' . ($routeLocale !== '' ? rawurlencode($routeLocale) . '/' : '') . trim((string)$route['path'], '/') . '/';
+                    $path = gsk_normalize_page_path($path);
+                    if ($path !== '') $paths[(int)$route['post_id']][] = $path;
+                }
+            }
+        }
+    } catch (Throwable $e) {
+        // Legacy installations may not have canonical routes for every article.
+    }
+    foreach ($posts as $post) {
+        $postId = (int)($post['id'] ?? 0);
+        if ($postId < 1) continue;
+        if (($paths[$postId] ?? []) === []) {
+            $fallback = gsk_ga4_content_fallback_path($pdo, $post);
+            if ($fallback !== '') $paths[$postId][] = $fallback;
+        }
+        $paths[$postId] = array_values(array_unique($paths[$postId] ?? []));
+    }
+    return $paths;
+}
+
+function gsk_ga4_content_route_locale(): string {
+    $locale = strtolower(trim((string)($GLOBALS['ct_request_locale'] ?? '')));
+    if ($locale === '') {
+        $current = strtolower(trim(gsk_content_locale()));
+        $default = function_exists('content_default_locale')
+            ? strtolower(trim((string)content_default_locale()))
+            : $current;
+        if ($current !== '' && $current !== $default) $locale = $current;
+    }
+    return preg_match('/\A[a-z0-9]+(?:-[a-z0-9]+)*\z/D', $locale) === 1 ? $locale : '';
+}
+
+function gsk_ga4_content_candidate_scores(PDO $pdo, array $snapshot, array $where = [], array $params = [], ?string $locale = null): array {
+    $views = is_array($snapshot['views'] ?? null) ? $snapshot['views'] : [];
+    $locale ??= gsk_ga4_content_route_locale();
+    if (preg_match('/\A[a-z0-9]+(?:-[a-z0-9]+)*\z/D', $locale) !== 1) $locale = '';
+    $routeViews = [];
+    foreach ($views as $path => $count) {
+        $path = gsk_normalize_page_path((string)$path);
+        $count = max(0, (int)$count);
+        if ($path === '' || $count < 1) continue;
+        $relative = trim($path, '/');
+        if ($locale !== '') {
+            $prefix = $locale . '/';
+            if (!str_starts_with($relative, $prefix)) continue;
+            $relative = substr($relative, strlen($prefix));
+        }
+        if ($relative === '') continue;
+        $routeViews[$relative] = ['path' => $path, 'count' => $count];
+    }
+    if ($routeViews === []) return [];
+
+    $where = array_merge(['p.type = \'article\'', 'p.status = \'published\'', 'p.is_deleted = 0'], array_values(array_filter(
+        $where,
+        static fn(mixed $clause): bool => is_string($clause) && trim($clause) !== ''
+    )));
+    $matchedPaths = [];
+    $add = static function (int $postId, string $relative) use (&$matchedPaths, $routeViews): void {
+        $match = $routeViews[$relative] ?? null;
+        if ($postId < 1 || !is_array($match)) return;
+        $matchedPaths[$postId][(string)$match['path']] = (int)$match['count'];
+    };
+
+    foreach (array_chunk(array_keys($routeViews), 500) as $chunkIndex => $routes) {
+        $bindings = $params;
+        $bindings[':gsk_route_locale'] = $locale;
+        $placeholders = [];
+        foreach ($routes as $index => $route) {
+            $name = ':gsk_route_' . $chunkIndex . '_' . $index;
+            $placeholders[] = $name;
+            $bindings[$name] = $route;
+        }
+        try {
+            $stmt = $pdo->prepare('SELECT p.id, cr.path FROM content_routes cr INNER JOIN posts p ON p.id = cr.post_id WHERE cr.locale = :gsk_route_locale AND cr.path IN (' . implode(',', $placeholders) . ') AND ' . implode(' AND ', $where));
+            $stmt->execute($bindings);
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) $add((int)$row['id'], (string)$row['path']);
+        } catch (Throwable $e) {
+            // Legacy installations can still match candidates through their fallback permalink.
+        }
+        if ($locale !== '') {
+            try {
+                $translationBindings = $params;
+                $translationBindings[':gsk_translation_locale'] = $locale;
+                foreach ($routes as $index => $route) {
+                    $translationBindings[':gsk_route_' . $chunkIndex . '_' . $index] = $route;
+                }
+                $stmt = $pdo->prepare("SELECT p.id, pt.slug FROM post_translations pt INNER JOIN posts p ON p.id = pt.post_id WHERE pt.locale = :gsk_translation_locale AND pt.status = 'published' AND TRIM(pt.title) <> '' AND TRIM(pt.slug) <> '' AND pt.slug IN (" . implode(',', $placeholders) . ') AND ' . implode(' AND ', $where));
+                $stmt->execute($translationBindings);
+                foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) $add((int)$row['id'], (string)$row['slug']);
+            } catch (Throwable $e) {
+                // Content Translation is optional.
+            }
+        }
+    }
+
+    if ($locale === '') {
+        try {
+            $bindings = $params;
+            $bindings[':gsk_fallback_locale'] = $locale;
+            $stmt = $pdo->prepare('SELECT p.id, p.title, p.slug, p.type, p.created_at FROM posts p WHERE ' . implode(' AND ', $where)
+                . ' AND NOT EXISTS (SELECT 1 FROM content_routes gsk_existing_route WHERE gsk_existing_route.post_id = p.id AND gsk_existing_route.locale = :gsk_fallback_locale)');
+            $stmt->execute($bindings);
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $path = gsk_ga4_content_fallback_path($pdo, $row);
+                $normalized = gsk_normalize_page_path($path);
+                if ($normalized !== '' && isset($views[$normalized])) {
+                    $matchedPaths[(int)$row['id']][$normalized] = max(0, (int)$views[$normalized]);
+                }
+            }
+        } catch (Throwable $e) {
+            // A missing route table makes the route query above fail closed as well.
+        }
+    }
+
+    $scores = [];
+    foreach ($matchedPaths as $postId => $matches) {
+        $scores[$postId] = array_sum($matches);
+    }
+    arsort($scores, SORT_NUMERIC);
+    return $scores;
 }
 
 function gsk_localized_view_count(int $count): string {
@@ -925,7 +1321,7 @@ function gsk_public_view_count(string $html, array $post = []): string {
     if (!in_array($current['type'] ?? null, ['article', 'page'], true)
         || (int)($post['id'] ?? 0) !== $current['id']
         || ($post['type'] ?? null) !== $current['type']) return $html;
-    $label = gsk_localized_view_count(gsk_content_view_total($pdo, 'post', $current['id']));
+    $label = gsk_localized_view_count(gsk_ga4_post_view_count($pdo, $post));
     $icon = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>';
     return '<div class="jym-public-views" aria-label="' . gsk_e($label) . '">' . $icon . '<span>' . gsk_e($label) . '</span></div>' . $html;
 }
@@ -933,7 +1329,6 @@ function gsk_public_view_count(string $html, array $post = []): string {
 function gsk_can_show_dashboard_views(PDO $pdo, array $context): bool {
     $actorId = (int)($context['actor_id'] ?? 0);
     return gsk_content_view_settings($pdo)['show_dashboard']
-        && gsk_content_views_table_ready($pdo)
         && $actorId > 0 && function_exists('user_can')
         && user_can($pdo, $actorId, 'plugin.jy-metrics.reports.read');
 }
@@ -941,49 +1336,49 @@ function gsk_can_show_dashboard_views(PDO $pdo, array $context): bool {
 function gsk_post_list_view_select(string $select, string $where, array $context = []): string {
     $pdo = $GLOBALS['pdo'] ?? null;
     if (!($pdo instanceof PDO) || ($context['schema'] ?? null) !== 1
-        || !in_array($context['type'] ?? null, ['article', 'page', 'theme'], true)
+        || !in_array($context['type'] ?? null, ['article', 'page'], true)
         || !gsk_can_show_dashboard_views($pdo, $context)) return $select;
-    return $select . ', COALESCE((SELECT SUM(gsk_cv.`view_count`) FROM `' . GSK_CONTENT_VIEWS_TABLE . '` gsk_cv WHERE gsk_cv.`entity_kind` = \'post\' AND gsk_cv.`entity_id` = p.id), 0) AS gsk_view_count';
+    return $select . ", COALESCE((SELECT CONCAT('[', GROUP_CONCAT(JSON_QUOTE(gsk_cr.path) ORDER BY gsk_cr.id SEPARATOR ','), ']') FROM content_routes gsk_cr WHERE gsk_cr.post_id = p.id AND gsk_cr.locale = ''), '[]') AS gsk_ga4_route_paths";
+}
+
+function gsk_admin_content_paths(PDO $pdo, array $row): ?array {
+    if (!array_key_exists('gsk_ga4_route_paths', $row)) return null;
+    $routes = json_decode((string)$row['gsk_ga4_route_paths'], true);
+    if (!is_array($routes)) return null;
+    $paths = [];
+    foreach ($routes as $route) {
+        if (!is_string($route)) continue;
+        $path = gsk_normalize_page_path('/' . trim($route, '/') . '/');
+        if ($path !== '') $paths[] = $path;
+    }
+    if ($paths === []) {
+        $resolver = ($row['type'] ?? null) === 'page' ? 'get_page_permalink' : 'get_post_permalink';
+        try {
+            $fallback = function_exists($resolver)
+                ? gsk_normalize_page_path($resolver($row))
+                : gsk_ga4_content_fallback_path($pdo, $row);
+        } catch (Throwable $e) {
+            $fallback = gsk_ga4_content_fallback_path($pdo, $row);
+        }
+        if ($fallback !== '') $paths[] = $fallback;
+    }
+    return array_values(array_unique($paths));
 }
 
 function gsk_admin_content_view_action(mixed $items, array $row, array $context, PDO $pdo): array {
     if (!is_array($items)) $items = [];
     if (($context['schema'] ?? null) !== 1
-        || !in_array($context['content_type'] ?? null, ['article', 'page', 'theme'], true)
+        || !in_array($context['content_type'] ?? null, ['article', 'page'], true)
         || !gsk_can_show_dashboard_views($pdo, $context)) return $items;
+    $row['type'] = (string)$context['content_type'];
     $items[] = [
         'key' => 'jy-metrics.views',
-        'label' => gsk_localized_view_count(max(0, (int)($row['gsk_view_count'] ?? 0))),
+        'label' => gsk_localized_view_count(gsk_ga4_post_view_count($pdo, $row, 'all', gsk_admin_content_paths($pdo, $row))),
         'icon' => 'eye',
         'url' => gsk_page_url(''),
         'title' => gsk_t('Open Jy Metrics dashboard'),
     ];
     return $items;
-}
-
-function gsk_category_view_counts(PDO $pdo): array {
-    $pdoKey = spl_object_id($pdo);
-    if (isset($GLOBALS['gsk_category_view_counts'][$pdoKey])) return $GLOBALS['gsk_category_view_counts'][$pdoKey];
-    $counts = [];
-    try {
-        $stmt = $pdo->query('SELECT `entity_id`, SUM(`view_count`) AS `total_views` FROM `' . GSK_CONTENT_VIEWS_TABLE . '` WHERE `entity_kind` = \'category\' GROUP BY `entity_id`');
-        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) $counts[(int)$row['entity_id']] = max(0, (int)$row['total_views']);
-    } catch (Throwable $e) {
-        $counts = [];
-    }
-    $GLOBALS['gsk_category_view_counts'][$pdoKey] = $counts;
-    return $counts;
-}
-
-function gsk_admin_category_view_action(array $category, array $context, PDO $pdo): void {
-    if (!gsk_can_show_dashboard_views($pdo, $context)) return;
-    $categoryId = (int)($category['id'] ?? 0);
-    if ($categoryId < 1) return;
-    $counts = gsk_category_view_counts($pdo);
-    $label = gsk_localized_view_count((int)($counts[$categoryId] ?? 0));
-    if (($context['can_update'] ?? false) === true) echo '<span class="muted-divider">|</span>';
-    echo '<a class="adam-ubah" href="' . gsk_e(gsk_page_url('')) . '" title="' . gsk_e(gsk_t('Open Jy Metrics dashboard')) . '">'
-        . (function_exists('svg_ico') ? svg_ico('eye') : '') . gsk_e($label) . '</a>';
 }
 
 function gsk_popular_posts_collection_context(int $period, int $limit): array {
@@ -1002,6 +1397,8 @@ function gsk_popular_posts_collection_context(int $period, int $limit): array {
 function gsk_popular_posts(PDO $pdo, int $period, int $limit): array {
     if (!in_array($period, [1, 7, 30, 365], true)) $period = 30;
     $limit = max(1, min(20, $limit));
+    $snapshot = gsk_ga4_content_snapshot($pdo, $period);
+    if ($snapshot === null) return [];
     $locale = gsk_content_locale();
     $context = gsk_popular_posts_collection_context($period, $limit);
     $clauses = function_exists('collection_query_clauses')
@@ -1009,39 +1406,53 @@ function gsk_popular_posts(PDO $pdo, int $period, int $limit): array {
         : ['where' => [], 'params' => []];
     $cacheKey = spl_object_id($pdo) . ':' . hash('sha256', serialize([$period, $limit, $locale, $clauses]));
     if (isset($GLOBALS['gsk_popular_posts'][$cacheKey])) return $GLOBALS['gsk_popular_posts'][$cacheKey];
-    $startDate = gmdate('Y-m-d', time() - (($period - 1) * 86400));
-    $endDate = gmdate('Y-m-d');
     try {
-        $where = ['p.type = \'article\'', 'p.status = \'published\'', 'p.is_deleted = 0'];
+        $where = [];
         foreach ($clauses['where'] ?? [] as $clause) {
             if (is_string($clause) && trim($clause) !== '') $where[] = '(' . $clause . ')';
         }
-        $localeClause = $locale === ''
-            ? "v.`representation_locale` = ''"
-            : "v.`representation_locale` IN ('', :gsk_locale)";
-        $sql = 'SELECT p.id, p.title, p.slug, p.type, p.created_at, SUM(v.`view_count`) AS view_count
-            FROM posts p
-            INNER JOIN `' . GSK_CONTENT_VIEWS_TABLE . '` v ON v.`entity_kind` = \'post\' AND v.`entity_id` = p.id AND v.`entity_type` = \'article\' AND v.`view_date_utc` BETWEEN :gsk_start_date AND :gsk_end_date AND ' . $localeClause . '
-            WHERE ' . implode(' AND ', $where) . '
-            GROUP BY p.id, p.title, p.slug, p.type, p.created_at
-            ORDER BY view_count DESC, p.id ASC
-            LIMIT :gsk_limit';
-        $stmt = $pdo->prepare($sql);
-        $stmt->bindValue(':gsk_start_date', $startDate);
-        $stmt->bindValue(':gsk_end_date', $endDate);
-        if ($locale !== '') $stmt->bindValue(':gsk_locale', $locale);
+        $collectionParams = [];
         foreach ($clauses['params'] ?? [] as $name => $value) {
             if (!is_string($name) || str_starts_with($name, ':gsk_')
                 || preg_match('/\A:[A-Za-z][A-Za-z0-9_]*\z/D', $name) !== 1 || !is_scalar($value)) {
                 throw new UnexpectedValueException('Invalid collection query parameter.');
             }
-            $stmt->bindValue($name, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+            $collectionParams[$name] = $value;
         }
-        $stmt->bindValue(':gsk_limit', $limit, PDO::PARAM_INT);
-        $stmt->execute();
-        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
-        if (function_exists('collection_filter_rows')) $rows = collection_filter_rows($rows, $context);
-        $rows = array_slice($rows, 0, $limit);
+        $candidateScores = gsk_ga4_content_candidate_scores($pdo, $snapshot, $where, $collectionParams);
+        if ($candidateScores === []) return $GLOBALS['gsk_popular_posts'][$cacheKey] = [];
+        $ranked = [];
+        $candidateIds = array_keys($candidateScores);
+        $chunkSize = max(20, min(50, $limit * 4));
+        foreach (array_chunk($candidateIds, $chunkSize) as $chunkIndex => $chunk) {
+            $candidateParams = [];
+            foreach ($chunk as $index => $postId) $candidateParams[':gsk_candidate_' . $index] = (int)$postId;
+            $placeholders = implode(',', array_keys($candidateParams));
+            $sql = 'SELECT p.id, p.title, p.slug, p.type, p.created_at FROM posts p WHERE p.id IN (' . $placeholders . ") AND p.type = 'article' AND p.status = 'published' AND p.is_deleted = 0"
+                . ($where !== [] ? ' AND ' . implode(' AND ', $where) : '');
+            $stmt = $pdo->prepare($sql);
+            foreach ($candidateParams as $name => $postId) $stmt->bindValue($name, $postId, PDO::PARAM_INT);
+            foreach ($collectionParams as $name => $value) {
+                $stmt->bindValue($name, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+            }
+            $stmt->execute();
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+            if (function_exists('collection_filter_rows')) $rows = collection_filter_rows($rows, $context);
+            foreach ($rows as $row) {
+                $postId = (int)($row['id'] ?? 0);
+                $count = (int)($candidateScores[$postId] ?? 0);
+                if ($count < 1) continue;
+                $row['view_count'] = $count;
+                $ranked[] = $row;
+            }
+            usort($ranked, static fn(array $a, array $b): int => ((int)$b['view_count'] <=> (int)$a['view_count']) ?: ((int)$a['id'] <=> (int)$b['id']));
+            $ranked = array_slice($ranked, 0, $limit);
+            $nextIndex = (($chunkIndex + 1) * $chunkSize);
+            $nextId = $candidateIds[$nextIndex] ?? null;
+            $minimum = $ranked === [] ? 0 : (int)$ranked[array_key_last($ranked)]['view_count'];
+            if (count($ranked) >= $limit && ($nextId === null || (int)($candidateScores[$nextId] ?? 0) < $minimum)) break;
+        }
+        $rows = $ranked;
         $GLOBALS['gsk_popular_posts'][$cacheKey] = $rows;
         return $rows;
     } catch (Throwable $e) {
@@ -1084,11 +1495,10 @@ add_action('frontend_entity_viewed', 'gsk_frontend_entity_viewed');
 add_filter('post_content', 'gsk_public_view_count', 20);
 add_filter('post_list_select', 'gsk_post_list_view_select', 10);
 add_filter('admin_content_row_actions', 'gsk_admin_content_view_action', 10);
-add_action('admin_category_row_actions', 'gsk_admin_category_view_action');
 add_filter('sidebar_widget_types', function (array $types): array {
     $types['jy_metrics_popular_posts'] = [
         'label' => gsk_t('Popular Posts'),
-        'desc' => gsk_t('Published articles ranked by first-party views using each widget\'s period and item limit.'),
+        'desc' => gsk_t('Published articles ranked by cached Google Analytics views using each widget\'s period and item limit.'),
         'default_config' => ['title' => gsk_t('Popular Posts'), 'period' => '30', 'limit' => 5],
         'config_fields' => [
             'period' => [
@@ -1096,6 +1506,7 @@ add_filter('sidebar_widget_types', function (array $types): array {
                 'control' => 'select',
                 'options' => [
                     '1' => gsk_t('Today'),
+                    '7' => gsk_t('Weekly (7 days)'),
                     '30' => gsk_t('Monthly (30 days)'),
                     '365' => gsk_t('Yearly (365 days)'),
                 ],
@@ -1113,6 +1524,17 @@ add_action('admin_init', function (): void {
     $pdo = $GLOBALS['pdo'] ?? null;
     if (!($pdo instanceof PDO)) return;
     gsk_ensure_schema($pdo);
+    $page = is_string($_GET['page'] ?? null) ? $_GET['page'] : '';
+    $actorId = function_exists('current_user_id') ? current_user_id() : (int)($_SESSION['user_id'] ?? 0);
+    $isMetricsPage = $page === 'admin/tools/jy-metrics' || str_starts_with($page, 'admin/tools/jy-metrics/');
+    $canRefresh = $actorId > 0 && function_exists('user_can') && (
+        ($page === 'admin/sidebar/index' && user_can($pdo, $actorId, 'core.sidebar.manage'))
+        || ($isMetricsPage && (user_can($pdo, $actorId, 'plugin.jy-metrics.reports.read')
+            || user_can($pdo, $actorId, 'plugin.jy-metrics.integrations.manage')))
+    );
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' && $canRefresh) {
+        gsk_refresh_ga4_content_views($pdo);
+    }
 });
 
 add_action('plugins_loaded', function (): void {
@@ -1133,6 +1555,7 @@ add_action('jy_head', function (): void {
     $adsense = gsk_setting($pdo, GSK_ADSENSE_CLIENT_KEY);
     $consentMode = gsk_consent_mode($pdo);
     $consentCategories = gsk_consent_categories($pdo);
+    $contentTracking = gsk_ga4_content_tracking_context();
     $consentMeasurementId = $consentCategories['analytics'] ? $measurementId : '';
     $consentGtmId = $consentCategories['advertising'] ? $gtmId : '';
     $consentAdsense = $consentCategories['advertising'] ? $adsense : '';
@@ -1146,6 +1569,9 @@ add_action('jy_head', function (): void {
             'privacyUrl' => $privacyUrl,
             'categories' => $consentCategories,
             'categoryPolicy' => gsk_consent_category_policy($pdo),
+            'contentId' => $contentTracking['contentId'] ?? '',
+            'contentType' => $contentTracking['contentType'] ?? '',
+            'contentLocale' => $contentTracking['contentLocale'] ?? '',
         ], JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
         echo '<script>(function(c){' . "\n";
         echo "window.dataLayer=window.dataLayer||[];\n";
@@ -1156,7 +1582,7 @@ add_action('jy_head', function (): void {
         echo "try{var rawSaved=JSON.parse(localStorage.getItem(key)||'null'),saved=normalize(rawSaved);if(saved){prefs=saved;decided=true;if(rawSaved.analytics!==prefs.analytics||rawSaved.advertising!==prefs.advertising||rawSaved.categoryPolicy!==c.categoryPolicy)localStorage.setItem(key,JSON.stringify({analytics:prefs.analytics,advertising:prefs.advertising,savedAt:saved.savedAt,policyVersion:2,categoryPolicy:c.categoryPolicy}));}else{var legacy=JSON.parse(localStorage.getItem(legacyKey)||'null');if(c.categoryPolicy==='legacy'&&legacy&&validSavedAt(legacy.savedAt)&&(legacy.choice==='accepted'||legacy.choice==='rejected')){decided=true;prefs={analytics:c.categories.analytics&&legacy.choice==='accepted',advertising:c.categories.advertising&&legacy.choice==='accepted'&&!gpc};localStorage.setItem(key,JSON.stringify({analytics:prefs.analytics,advertising:prefs.advertising,savedAt:Number(legacy.savedAt),policyVersion:2,categoryPolicy:c.categoryPolicy}));localStorage.removeItem(legacyKey);}}}catch(e){}\n";
         echo "function consentValues(){return{analytics_storage:prefs.analytics?'granted':'denied',ad_storage:prefs.advertising?'granted':'denied',ad_user_data:prefs.advertising?'granted':'denied',ad_personalization:prefs.advertising?'granted':'denied'};}function applyConsent(){gtag('consent','update',consentValues());}applyConsent();\n";
         echo "var loaded={analytics:false,advertising:false};function add(src,crossOrigin){var script=document.createElement('script'),first=document.scripts[0];script.async=true;script.src=src;if(crossOrigin)script.crossOrigin='anonymous';first.parentNode.insertBefore(script,first);}\n";
-        echo "function loadAllowed(){if(prefs.analytics&&!loaded.analytics){loaded.analytics=true;if(c.measurementId){gtag('js',new Date());gtag('config',c.measurementId);add('https://www.googletagmanager.com/gtag/js?id='+encodeURIComponent(c.measurementId));}}if(prefs.advertising&&!loaded.advertising){loaded.advertising=true;if(c.gtmId){dataLayer.push({'gtm.start':Date.now(),event:'gtm.js'});add('https://www.googletagmanager.com/gtm.js?id='+encodeURIComponent(c.gtmId));}if(c.adsense)add('https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client='+encodeURIComponent(c.adsense),true);}}\n";
+        echo "function analyticsParams(){var p={};if(c.contentId)p.content_id=c.contentId;if(c.contentType)p.content_type=c.contentType;if(c.contentLocale)p.content_group=c.contentLocale;return p;}function loadAllowed(){if(prefs.analytics&&!loaded.analytics){loaded.analytics=true;if(c.measurementId){gtag('js',new Date());gtag('config',c.measurementId,analyticsParams());add('https://www.googletagmanager.com/gtag/js?id='+encodeURIComponent(c.measurementId));}}if(prefs.advertising&&!loaded.advertising){loaded.advertising=true;if(c.gtmId){dataLayer.push({'gtm.start':Date.now(),event:'gtm.js'});add('https://www.googletagmanager.com/gtm.js?id='+encodeURIComponent(c.gtmId));}if(c.adsense)add('https://pagead2.googlesyndication.com/pagead/js?client='+encodeURIComponent(c.adsense),true);}}\n";
         echo "function clearCookies(analytics,advertising){var domains=[''],parts=location.hostname.split('.');for(var i=0;i<parts.length-1;i++)domains.push('.'+parts.slice(i).join('.'));document.cookie.split(';').forEach(function(value){var name=value.split('=')[0].trim(),remove=analytics&&(name==='_gid'||name==='_gat'||name.indexOf('_gat_')===0||name==='_ga'||name.indexOf('_ga_')===0||name==='AMP_TOKEN'||name==='FPLC')||advertising&&(name==='FPAU'||name.indexOf('_gcl')===0||name.indexOf('_gac')===0||name.indexOf('__gads')===0||name.indexOf('__gpi')===0||name.indexOf('__eoi')===0);if(!remove)return;domains.forEach(function(domain){document.cookie=name+'=; Max-Age=0; Path=/; SameSite=Lax'+(domain?'; Domain='+domain:'');});});}clearCookies(!prefs.analytics,!prefs.advertising);\n";
         echo "function notify(){dispatchEvent(new CustomEvent('jy-metrics-consent-change',{detail:{preferences:{analytics:prefs.analytics,advertising:prefs.advertising},gpc:gpc}}));}function persist(savedAt){try{localStorage.setItem(key,JSON.stringify({analytics:prefs.analytics,advertising:prefs.advertising,savedAt:savedAt===undefined?Date.now():savedAt,policyVersion:2,categoryPolicy:c.categoryPolicy}));localStorage.removeItem(legacyKey);}catch(e){}}\n";
         echo "function normalizePath(path){path=path.replace(/\\/+$/,'');return path||'/';}var localPrivacyPage=false,onPrivacyPage=false;try{if(c.privacyUrl){var privacyTarget=new URL(c.privacyUrl,location.origin),samePath=normalizePath(privacyTarget.pathname)===normalizePath(location.pathname),sameQuery=!privacyTarget.search||privacyTarget.search===location.search,sameHash=!privacyTarget.hash||privacyTarget.hash===location.hash;localPrivacyPage=privacyTarget.origin===location.origin;onPrivacyPage=localPrivacyPage&&samePath&&sameQuery&&sameHash;}}catch(e){}var api={preferences:{analytics:prefs.analytics,advertising:prefs.advertising},categories:{analytics:c.categories.analytics,advertising:c.categories.advertising},decided:decided,gpc:gpc,hasLocalPrivacyPage:localPrivacyPage,reopenOnCurrentPage:!localPrivacyPage||onPrivacyPage};function adoptPreferences(next,write,savedAt){var previous={analytics:prefs.analytics,advertising:prefs.advertising};prefs={analytics:c.categories.analytics&&next.analytics===true,advertising:c.categories.advertising&&next.advertising===true&&!gpc};decided=true;api.preferences={analytics:prefs.analytics,advertising:prefs.advertising};api.decided=true;if(write)persist(savedAt);applyConsent();var revokedAnalytics=previous.analytics&&!prefs.analytics,revokedAdvertising=previous.advertising&&!prefs.advertising;clearCookies(revokedAnalytics,revokedAdvertising);if((revokedAnalytics&&loaded.analytics)||(revokedAdvertising&&loaded.advertising)){location.reload();return;}loadAllowed();notify();}api.set=function(next){adoptPreferences(next,true);};api.acceptAll=function(){adoptPreferences({analytics:c.categories.analytics,advertising:c.categories.advertising},true);};api.rejectAll=function(){adoptPreferences({analytics:false,advertising:false},true);};window.jyMetricsConsent=api;\n";
@@ -1166,10 +1592,13 @@ add_action('jy_head', function (): void {
         $trackingConfig = json_encode([
             'measurementId' => $consentMeasurementId,
             'gtmId' => $consentGtmId,
+            'contentId' => $contentTracking['contentId'] ?? '',
+            'contentType' => $contentTracking['contentType'] ?? '',
+            'contentLocale' => $contentTracking['contentLocale'] ?? '',
         ], JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
         echo '<script>(function(c){' . "\n";
         echo "window.dataLayer=window.dataLayer||[];\n";
-        echo "if(c.measurementId){window.gtag=window.gtag||function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',c.measurementId);}\n";
+        echo "if(c.measurementId){window.gtag=window.gtag||function(){dataLayer.push(arguments);};var page={};if(c.contentId)page.content_id=c.contentId;if(c.contentType)page.content_type=c.contentType;if(c.contentLocale)page.content_group=c.contentLocale;gtag('js',new Date());gtag('config',c.measurementId,page);}\n";
         echo "var loaded=false;function load(){if(loaded)return;loaded=true;var first=document.scripts[0];function add(src){var script=document.createElement('script');script.async=true;script.src=src;first.parentNode.insertBefore(script,first);}\n";
         echo "if(c.measurementId)add('https://www.googletagmanager.com/gtag/js?id='+encodeURIComponent(c.measurementId));\n";
         echo "if(c.gtmId){dataLayer.push({'gtm.start':Date.now(),event:'gtm.js'});add('https://www.googletagmanager.com/gtm.js?id='+encodeURIComponent(c.gtmId));}}\n";

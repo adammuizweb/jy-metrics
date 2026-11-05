@@ -72,7 +72,7 @@ $check(str_contains($adminSource, "var pageSize = 7")
     && str_contains($adminSource, "dimension === 'brand' && data.rows.length > pageSize")
     && str_contains($adminSource, 'gsk-breakdown-value'),
     'brand lists paginate compactly while every row shows count and percentage');
-$check(str_contains($pluginSource, "GSK_I18N_VERSION_KEY) === '14'")
+$check(str_contains($pluginSource, "GSK_I18N_VERSION_KEY) === '15'")
     && str_contains($pluginSource, "'Traffic breakdown' => 'Rincian traffic'")
     && str_contains($pluginSource, "'Mobile and tablet sessions grouped by device brand.'"),
     'traffic breakdown interface strings are registered for Indonesian localization');

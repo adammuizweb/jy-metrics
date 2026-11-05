@@ -19,8 +19,8 @@ at once.
 - Lazy-loaded dashboard sections with stale-request protection
 - Cached API responses to reduce external requests
 - Optional public analytics, tag management, and advertising snippets
-- First-party daily content-view totals for Articles, Pages, Theme Content, and Categories
-- Optional dashboard and public all-time counts, plus a Popular Posts Sidebar widget
+- Cached Google Analytics content-view totals for Articles and Pages
+- Optional dashboard and public all-time counts, plus a locale-aware Popular Posts Sidebar widget
 
 ## Requirements
 
@@ -56,23 +56,33 @@ required service and to the server or site that uses it.
 
 ### Content Views
 
-Jy Metrics records one view per resolved entity, content locale, and public GET
-request in a UTC daily aggregate. It stores only the content kind, content ID,
-bounded content type and locale, UTC date, and count. It does not store visitor
-identifiers, cookies, IP addresses, or raw event rows. Collection remains active
-while the plugin is active and is independent of Google cookie consent.
+Jy Metrics uses Google Analytics `screenPageViews` grouped by hostname and page
+path as the content-view source of truth. Localized paths are separate cache
+entries, so language variants can have different rankings and totals. Public
+requests never contact Google; they read a database snapshot that remains usable
+for up to 24 hours if a refresh fails.
 
-The **Content Views** settings card controls visibility only. Dashboard row
-counts and public single Article/Page counts are disabled by default. Configure
-each **Jy Metrics Popular Posts** instance in Sidebar Settings with its own
-Today, 30-day, or 365-day period and 1-20 item limit, so multiple independently
+An authorized request to Jy Metrics or Sidebar Settings refreshes stale periods
+at most once per hour under a nonblocking database lock. Only periods used by an
+active Popular Posts widget are fetched. The all-time report is fetched only
+when dashboard or public counts are enabled. A scheduled server may refresh the
+same cache explicitly:
+
+```bash
+php plugins/jy-metrics/tools/refresh-content-views.php
+```
+
+The **Content Views** settings card controls visibility. Dashboard row counts
+and public single Article/Page counts are disabled by default. Configure each
+**Jy Metrics Popular Posts** instance in Sidebar Settings with its own Today,
+7-day, 30-day, or 365-day period and 1-20 item limit, so multiple independently
 ranked widgets can be used at once.
 
 Popular Posts uses the CMS collection contracts when available. Translation
 plugins can therefore restrict candidates to public representations and overlay
-localized titles and URLs without becoming a Jy Metrics dependency. Historical
-counts recorded before locale tracking remain a shared ranking baseline; new
-views are ranked within the current content locale.
+localized titles and URLs without becoming a Jy Metrics dependency. Ranking is
+matched against each representation's localized permalink and its corresponding
+Google Analytics page path.
 
 ## Permissions
 
