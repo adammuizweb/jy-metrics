@@ -328,7 +328,7 @@ function gsk_cache_get(PDO $pdo, string $key, int $ttl = 3600): ?array {
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$row) return null;
         $ts = strtotime($row['created_at']);
-        if ($ts === false || time() - $ts > $ttl) return null;
+        if ($ts === false || ($ttl > 0 && time() - $ts > $ttl)) return null;
         $data = json_decode($row['data'], true);
         return is_array($data) ? $data : null;
     } catch (Throwable $e) {
@@ -401,7 +401,7 @@ function gsk_ga4_content_cache_key(string $propertyId, string $host, int|string 
     return 'gsk_ga4_content_v1_' . md5($propertyId . "\0" . $host . "\0" . (string)$period);
 }
 
-function gsk_ga4_content_snapshot(PDO $pdo, int|string $period, int $ttl = 86400): ?array {
+function gsk_ga4_content_snapshot(PDO $pdo, int|string $period, int $ttl = 0): ?array {
     if (!in_array($period, gsk_ga4_content_periods(), true)) return null;
     $propertyId = ltrim(gsk_setting($pdo, GSK_GA4_PROPERTY_ID_KEY), '/');
     if ($propertyId === '') return null;

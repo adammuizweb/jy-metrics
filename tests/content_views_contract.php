@@ -233,7 +233,12 @@ $check(($failedRefresh['ok'] ?? true) === false
     && ($throttledRefresh['ok'] ?? true) === false
     && str_contains((string)($throttledRefresh['error'] ?? ''), 'temporarily throttled')
     && (gsk_ga4_content_snapshot($pdo, 7)['views']['/english-leader'] ?? 0) === 20,
-    'provider errors are throttled for 15 minutes while the 24-hour stale snapshot remains readable');
+    'provider errors are throttled for 15 minutes while the last valid snapshot remains readable');
+$stmt = $pdo->prepare("UPDATE google_site_kit_cache SET created_at = datetime('now', '-30 days') WHERE cache_key = ?");
+$stmt->execute([$weeklyCacheKey]);
+$GLOBALS['gsk_ga4_content_snapshots'] = [];
+$check((gsk_ga4_content_snapshot($pdo, 7)['views']['/english-leader'] ?? 0) === 20,
+    'an old valid content snapshot remains readable until a successful refresh replaces it');
 
 $GLOBALS['gsk_test_collection_excluded']['id'] = 5;
 $GLOBALS['gsk_test_collection_translations'] = [
@@ -321,7 +326,7 @@ $pluginSource = (string)file_get_contents($root . '/plugin.php');
 $manifest = json_decode((string)file_get_contents($root . '/plugin.json'), true, 512, JSON_THROW_ON_ERROR);
 $settingsSource = (string)file_get_contents($root . '/admin/settings.php');
 $refreshTool = (string)file_get_contents($root . '/tools/refresh-content-views.php');
-$check(($manifest['version'] ?? '') === '2.13.1' && ($manifest['requires']['jyavani'] ?? '') === '>=2.3.195', 'manifest uses the reviewed patch-release identity and Core requirement');
+$check(($manifest['version'] ?? '') === '2.13.2' && ($manifest['requires']['jyavani'] ?? '') === '>=2.3.195', 'manifest uses the reviewed patch-release identity and Core requirement');
 $check(!str_contains($pluginSource, 'function gsk_record_content_view')
     && !str_contains($pluginSource, 'ON DUPLICATE KEY UPDATE `entity_type`')
     && str_contains($pluginSource, "gsk_ga4_content_v1_")

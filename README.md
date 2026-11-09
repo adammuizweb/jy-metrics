@@ -59,8 +59,8 @@ required service and to the server or site that uses it.
 Jy Metrics uses Google Analytics `screenPageViews` grouped by hostname and page
 path as the content-view source of truth. Localized paths are separate cache
 entries, so language variants can have different rankings and totals. Public
-requests never contact Google; they read a database snapshot that remains usable
-for up to 24 hours if a refresh fails.
+requests never contact Google; they keep reading the last valid database
+snapshot until a successful refresh atomically replaces it.
 
 An authorized request to Jy Metrics or Sidebar Settings refreshes stale periods
 at most once per hour under a nonblocking database lock. Only periods used by an
